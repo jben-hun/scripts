@@ -92,6 +92,8 @@ def main():
     outputPath = path.expanduser(args.output)
     os.makedirs(outputPath, exist_ok=True)
 
+    tCount = gtCount + np.sum( 1 - (np.array(detections)[:,1]) )
+
     tp,fp = 0,0
     lenDetections = len(detections)
     with open( path.join(outputPath, (testName+".csv")), 'w' ) as f:
@@ -106,8 +108,8 @@ def main():
                 fp += 1
 
             if last or not detections[j][1]:
-                data = ( 1*Decimal(tp/gtCount), fp, 1*Decimal(detection[0]) )
-                line = "{}\t{}\t{}\n".format(*data)
+                data = ( 1*Decimal(tp/gtCount), fp, 1*Decimal(fp/tCount), 1*Decimal(detection[0]) )
+                line = "{}\t{}\t{}\t{}\n".format(*data)
                 f.write(line)
 
 
