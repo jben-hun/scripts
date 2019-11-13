@@ -13,13 +13,14 @@ def main():
     getcontext().prec = 6
 
     parser = argparse.ArgumentParser()
+
     parser.add_argument("-m", "--model", default="/home/bjenei/train/head_det/v3/model.desc", help="model description file")
 
     parser.add_argument("-l", "--list", default="/home/bjenei/list/test/hh.csv", help="list file with test examples")
 
     parser.add_argument("-c" ,"--count", default=1, type=int, help="input image count")
 
-    parser.add_argument("-n", "--name", default=None)
+    parser.add_argument("-p", "--prefix", default=None)
 
     parser.add_argument("-o", "--output", default="~/detector_benchmark_result")
 
@@ -30,6 +31,7 @@ def main():
     parser.add_argument("--confidence_threshold", default=0.02, type=float)
     parser.add_argument("--min_height_pair", default=None, type=int)
     parser.add_argument("--max_height_pair", default=None, type=int)
+
     args = parser.parse_args()
 
     annotationList = util.readList(args.list,args.count)
@@ -54,13 +56,14 @@ def main():
 
     assert lenList==len(detectionList), "annotation: {}, detection: {}".format( lenList, len(detectionList) )
 
-    if args.name is not None:
-        testName = args.name
+    if args.prefix is not None:
+        testName = args.prefix + "_"
     else:
-        testName = "py_"
-        testName += path.dirname(args.model).split(os.sep)[-1]
-        testName += "_"
-        testName += path.splitext(path.basename(args.list))[0]
+        testName = ""
+
+    testName += path.dirname(args.model).split(os.sep)[-1]
+    testName += "_"
+    testName += path.splitext(path.basename(args.list))[0]
 
     gtCount = 0
     detections = []

@@ -52,12 +52,10 @@ for line in lines:
         y1 = boxes[index+1]
         x2 = boxes[index+2]
         y2 = boxes[index+3]
-        w = x2 - x1
-        h = y2 - y1
-        #boxSize = min(h,w)
+        w = x2 - x1 + 1
+        h = y2 - y1 + 1
         boxSize = h
 
-        #if boxSize < 1:
         if min(h,w) < 10:
             # path = "/home/bjenei/mount/research01/"+line.split('\t')[0]
             # filename = path.split('/')[-1]
