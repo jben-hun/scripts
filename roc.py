@@ -17,18 +17,17 @@ files.sort()
 
 dataFrames = []
 for i, file in enumerate(files):
-    df = pd.read_csv(file,sep='\t',header=None,names=["recall","fp","confidence"])
-    if args.comparable:
-        fpCount = df["fp"].sum()
-        print(fpCount)
-        exit()
-
+    df = pd.read_csv(file,sep='\t',header=None,names=["tpr","fp","fdr","confidence"])
     df["test"] = os.path.splitext(file)[0]
     dataFrames.append(df)
 
 df = pd.concat(dataFrames)
 
-fig = px.line(df, x="fp", y="recall", range_x=[0,2000], range_y=[0,1], color="test", height=700, line_shape="spline", render_mode="svg")
+if args.comparable:
+    fig = px.line(df, x="fdr", y="tpr", range_x=[0,1], range_y=[0,1], color="test", height=700, line_shape="linear", render_mode="svg")
+else:
+    fig = px.line(df, x="fp", y="tpr", range_x=[0,2000], range_y=[0,1], color="test", height=700, line_shape="linear", render_mode="svg")
+
 fig.update_layout(plot_bgcolor="white")
 fig.update_xaxes(gridcolor='lightGray',gridwidth=1,zerolinecolor="black",zerolinewidth=1)
 fig.update_yaxes(gridcolor='lightGray',gridwidth=1,zerolinecolor="black",zerolinewidth=1)
