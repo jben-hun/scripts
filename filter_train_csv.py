@@ -27,6 +27,9 @@ args = parser.parse_args()
 file = args.path
 count = args.count
 
+print(file)
+print()
+
 with open(file,'r') as f:
     lines = f.readlines()
 
@@ -59,7 +62,7 @@ with open( path.splitext(file)[0]+"_filtered"+path.splitext(file)[1], 'w' ) as f
             boxes[i][3] = int(ceil(box[3]))
             boxes[i][4] = 1
 
-            if boxes[i][0] >= boxes[i][2] or boxes[i][1] >= boxes[i][3]:
+            if boxes[i][0] > boxes[i][2] or boxes[i][1] > boxes[i][3]:
                 error("coordflip: skipped")
                 del boxes[i]
                 continue
@@ -92,3 +95,4 @@ with open( path.splitext(file)[0]+"_filtered"+path.splitext(file)[1], 'w' ) as f
         f.write(text+'\n')
 
     pprint(report)
+    print()

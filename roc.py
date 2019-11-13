@@ -4,7 +4,11 @@ import plotly as py
 import plotly_express as px
 import pandas as pd
 from sys import exit
-import os
+import os, argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-c", "--comparable", action='store_true')
+args = parser.parse_args()
 
 contents = os.listdir()
 files = filter(os.path.isfile,contents)
@@ -14,6 +18,11 @@ files.sort()
 dataFrames = []
 for i, file in enumerate(files):
     df = pd.read_csv(file,sep='\t',header=None,names=["recall","fp","confidence"])
+    if args.comparable:
+        fpCount = df["fp"].sum()
+        print(fpCount)
+        exit()
+
     df["test"] = os.path.splitext(file)[0]
     dataFrames.append(df)
 

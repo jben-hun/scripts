@@ -7,10 +7,10 @@ def iou(a,b):
     if a[2] < b[0] or b[2] < a[0] or a[3] < b[1] or b[3] < a[1]:
         return 0
 
-    aW = max(0,a[2]-a[0])
-    aH = max(0,a[3]-a[1])
-    bW = max(0,b[2]-b[0])
-    bH = max(0,b[3]-b[1])
+    aW = max(0,a[2]-a[0]+1)
+    aH = max(0,a[3]-a[1]+1)
+    bW = max(0,b[2]-b[0]+1)
+    bH = max(0,b[3]-b[1]+1)
 
     aArea = aW*aH
     bArea = bW*bH
@@ -18,12 +18,12 @@ def iou(a,b):
     intersection = [
         max(a[0],b[0]),
         max(a[1],b[1]),
-        min(a[2],b[2])+1,
-        min(a[3],b[3])+1
+        min(a[2],b[2]),
+        min(a[3],b[3])
     ]
 
-    intersectionW = max(0,intersection[2]-intersection[0])
-    intersectionH = max(0,intersection[3]-intersection[1])
+    intersectionW = max(0,intersection[2]-intersection[0]+1)
+    intersectionH = max(0,intersection[3]-intersection[1]+1)
     intersectionArea = intersectionW*intersectionH
 
     unionArea = aArea+bArea-intersectionArea
