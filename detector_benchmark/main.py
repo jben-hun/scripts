@@ -36,18 +36,27 @@ def main():
 
     annotationList = util.readList(args.list,args.count)
 
-    ret = subprocess.run([
-        "/home/bjenei/dldemo",
-        "rpndet",
-        args.model,
-        args.list,
-        args.csv_path,
-        str(args.min_height),
-        str(args.max_height),
-        str(args.confidence_threshold),
-        str(args.count),
-        '0'
-    ])
+    GLOG_minloglevel=2
+
+    clonedEnv = os.environ.copy()
+    clonedEnv["GLOG_minloglevel"] = "2"
+
+    ret = subprocess.run(
+        [
+            "/home/bjenei/dldemo",
+            "rpndet",
+            args.model,
+            args.list,
+            args.csv_path,
+            str(args.min_height),
+            str(args.max_height),
+            str(args.confidence_threshold),
+            str(args.count),
+            '0'
+        ],
+        env=clonedEnv
+    )
+
     assert not ret.returncode, ret.returncode
 
     detectionList = util.readList(args.csv_path,args.count,detection=True)
