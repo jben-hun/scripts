@@ -15,18 +15,21 @@ files = filter(os.path.isfile,contents)
 files = [ file for file in files if os.path.splitext(file)[1] == ".csv" ]
 files.sort()
 
+assert files, "no tests to show"
+
 dataFrames = []
 for i, file in enumerate(files):
-    df = pd.read_csv(file,sep='\t',header=None,names=["tpr","fp","fdr","confidence"])
+    #df = pd.read_csv(file,sep='\t',header=None,names=["tp","fp","recall","precision","confidence"])
+    df = pd.read_csv(file,sep='\t',header=0)
     df["test"] = os.path.splitext(file)[0]
     dataFrames.append(df)
 
 df = pd.concat(dataFrames)
 
 if args.comparable:
-    fig = px.line(df, x="fdr", y="tpr", range_x=[0,1], range_y=[0,1], color="test", height=700, line_shape="linear", render_mode="svg")
+    fig = px.line(df, x="confidence", y="F1", range_x=[0,1], range_y=[0,1], color="test", height=700, line_shape="linear", render_mode="svg")
 else:
-    fig = px.line(df, x="fp", y="tpr", range_x=[0,2000], range_y=[0,1], color="test", height=700, line_shape="linear", render_mode="svg")
+    fig = px.line(df, x="fp", y="recall", range_x=[0,2000], range_y=[0,1], color="test", height=700, line_shape="linear", render_mode="svg")
 
 fig.update_layout(plot_bgcolor="white")
 fig.update_xaxes(gridcolor='lightGray',gridwidth=1,zerolinecolor="black",zerolinewidth=1)
