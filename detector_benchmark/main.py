@@ -106,6 +106,9 @@ def main():
     tp,fp = 0,0
     lenDetections = len(detections)
     with open( path.join(outputPath, (testName+".csv")), 'w' ) as f:
+        header = ["tp","fp","recall","precision","confidence","F1"]
+        line = "\t".join(header)+"\n"
+        f.write(line)
         for j in range(1, lenDetections+1):
             last = (j == lenDetections)
             i = j - 1
@@ -117,8 +120,9 @@ def main():
                 fp += 1
 
             if last or not detections[j][1]:
-                data = ( 1*Decimal(tp/gtCount), fp, 1*Decimal(fp/tCount), 1*Decimal(detection[0]) )
-                line = "{}\t{}\t{}\t{}\n".format(*data)
+                data = [ tp, fp, 1*Decimal(tp/gtCount), 1*Decimal(fp/(tp+fp)), 1*Decimal(detection[0]), 1*Decimal(2*tp/(tp+fp+gtCount)) ]
+                data = map(str,data)
+                line = "\t".join(data)+"\n"
                 f.write(line)
 
 
