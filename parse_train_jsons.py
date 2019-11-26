@@ -4,8 +4,9 @@ import json, os, csv, argparse
 import os.path as path
 from pprint import pprint
 from datetime import datetime
-import sys
+import sys, glob
 from math import ceil, floor
+from sys import exit
 
 parser = argparse.ArgumentParser()
 parser.add_argument("path")
@@ -14,10 +15,12 @@ args = parser.parse_args()
 
 oldDate = datetime.strptime("1900", "%Y")
 
-with open( path.join( args.path, path.basename(args.path) + ".csv"), 'w', newline='' ) as csvfile:
+name = args.path.replace(os.sep,"")
+
+with open( name + ".csv", 'w', newline='' ) as csvfile:
     csvwriter = csv.writer(csvfile, delimiter="\t", lineterminator="\n")
 
-    with open( path.join( args.path, path.basename(args.path) + "_annotator.csv"), 'w', newline='' ) as csvfileAnnotator:
+    with open( name + "_annotator.csv", 'w', newline='' ) as csvfileAnnotator:
         csvwriterAnnotator = csv.writer(csvfileAnnotator, delimiter="\t", lineterminator="\n")
 
         for (dir, dirs, filenames) in os.walk(args.path):
@@ -28,8 +31,14 @@ with open( path.join( args.path, path.basename(args.path) + ".csv"), 'w', newlin
                     with open(path.join(dir, file)) as f:
                         jsonData = json.load(f)
 
-                    imageBaseName = jsonData["image"]
-                    imageName = path.join(dir, imageBaseName)
+                    #imageBaseName = jsonData["image"]
+                    #imageName = path.join(dir, imageBaseName)
+                    imageName = None
+                    for result in glob.glob( path.splitext(path.join(dir,file))[0] + ".*" ):
+                        if path.splitext(result)[1] != ".json":
+                            imageName = result
+                    assert imageName is not None
+
                     data = jsonData["annotations"]
 
                     maxDate = oldDate

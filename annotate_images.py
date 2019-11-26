@@ -14,6 +14,7 @@ args = parser.parse_args()
 
 csv = args.csv
 keepStructure = args.keep_structure
+outFolderName = path.splitext(path.basename(csv))[0] + "_annotated_images"
 
 d = {}
 with open(csv, 'r') as f:
@@ -38,16 +39,16 @@ with open(csv, 'r') as f:
 for fileName in d:
     srcImagePath = fileName
     if keepStructure:
-        dstImagePath = path.join( *(["annotated_images", path.splitext(path.basename(csv))[0]] + list(path.dirname(srcImagePath).split(os.sep)) + [path.basename(srcImagePath)]) )
+        dstImagePath = path.join( *([outFolderName, path.splitext(path.basename(csv))[0]] + list(path.dirname(srcImagePath).split(os.sep)) + [path.basename(srcImagePath)]) )
     else:
-        dstImagePath = path.join(*[ "annotated_images", path.splitext(path.basename(csv))[0], path.basename(srcImagePath) ])
+        dstImagePath = path.join(*[ outFolderName, path.splitext(path.basename(csv))[0], path.basename(srcImagePath) ])
 
     im = cv.imread(srcImagePath, -1)
 
     for box in d[fileName]:
         x1,y1,x2,y2 = box
-        cv.rectangle(im,(x1,y1),(x2,y2),(0,0,128),2)
+        cv.rectangle(im,(x1,y1),(x2,y2),(0,0,255),3)
 
     print(srcImagePath,dstImagePath)
     os.makedirs( path.dirname(dstImagePath), exist_ok=True )
-    cv.imwrite(dstImagePath, im)
+    cv.imwrite( dstImagePath, im )
