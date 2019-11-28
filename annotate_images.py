@@ -39,9 +39,9 @@ with open(csv, 'r') as f:
 for fileName in d:
     srcImagePath = fileName
     if keepStructure:
-        dstImagePath = path.join( *([outFolderName, path.splitext(path.basename(csv))[0]] + list(path.dirname(srcImagePath).split(os.sep)) + [path.basename(srcImagePath)]) )
+        dstImagePath = path.join( *([outFolderName] + list(path.dirname(srcImagePath).split(os.sep)) + [path.basename(srcImagePath)]) )
     else:
-        dstImagePath = path.join(*[ outFolderName, path.splitext(path.basename(csv))[0], path.basename(srcImagePath) ])
+        dstImagePath = path.join(*[ outFolderName, path.basename(srcImagePath) ])
 
     im = cv.imread(srcImagePath, -1)
 

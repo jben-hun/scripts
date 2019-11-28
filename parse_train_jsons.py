@@ -31,13 +31,19 @@ with open( name + ".csv", 'w', newline='' ) as csvfile:
                     with open(path.join(dir, file)) as f:
                         jsonData = json.load(f)
 
-                    #imageBaseName = jsonData["image"]
-                    #imageName = path.join(dir, imageBaseName)
-                    imageName = None
-                    for result in glob.glob( path.splitext(path.join(dir,file))[0] + ".*" ):
-                        if path.splitext(result)[1] != ".json":
-                            imageName = result
-                    assert imageName is not None
+                    # 1
+                    # imageBaseName = jsonData["image"]
+                    # imageName = path.join(dir, imageBaseName)
+
+                    # 2
+                    # imageName = None
+                    # for result in glob.glob( path.splitext(path.join(dir,file))[0] + ".*" ):
+                    #     if path.splitext(result)[1] != ".json":
+                    #         imageName = result
+                    # assert imageName is not None
+
+                    # 3
+                    imageName = path.splitext(path.join(dir,file))[0]
 
                     data = jsonData["annotations"]
 
@@ -70,19 +76,17 @@ with open( name + ".csv", 'w', newline='' ) as csvfile:
                                     ])
 
                         imageNames = []
-                        dirName = path.dirname(imageName)
-                        fileName, fileExt = path.splitext(path.basename(imageName))
-                        index = fileName.rfind('n')
-                        frame = int(fileName[index+1:])
-                        fileName = fileName[:index+1]
-                        for n in range(-args.count+1,1):
-                            editedImageName = path.join( dirName, fileName+str(frame+n)+fileExt )
-                            imageNames.append(editedImageName)
-
-                        if len(heads) != 0:
-                            csvwriter.writerow(imageNames+heads)
-                            csvwriterAnnotator.writerow(imageNames+[annotator]+heads)
-
+                        if args.count > 1:
+                            dirName = path.dirname(imageName)
+                            fileName, fileExt = path.splitext(path.basename(imageName))
+                            index = fileName.rfind('n')
+                            frame = int(fileName[index+1:])
+                            fileName = fileName[:index+1]
+                            for n in range(-args.count+1,1):
+                                editedImageName = path.join( dirName, fileName+str(frame+n)+fileExt )
+                                imageNames.append(editedImageName)
                         else:
-                            csvwriter.writerow(imageNames)
-                            csvwriterAnnotator.writerow(imageNames+[annotator])
+                            imageNames.append(imageName)
+
+                        csvwriter.writerow(imageNames+heads)
+                        csvwriterAnnotator.writerow(imageNames+[annotator]+heads)
