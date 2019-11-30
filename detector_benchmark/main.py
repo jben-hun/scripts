@@ -24,13 +24,16 @@ def main():
 
     parser.add_argument("-o", "--output", default="~/detector_benchmark_result")
 
+    parser.add_argument("--dldemo_exe", default="/home/bjenei/dldemo")
+    parser.add_argument("--dldemo_cmd", default="rpndet")
     parser.add_argument("--iou_threshold", default=0.5, type=float)
     parser.add_argument("--csv_path", default="/tmp/rpn_det.csv")
     parser.add_argument("--min_height", default=1, type=int)
     parser.add_argument("--max_height", default=1000, type=int)
-    parser.add_argument("--confidence_threshold", default=0.02, type=float)
     parser.add_argument("--min_height_pair", default=None, type=int)
     parser.add_argument("--max_height_pair", default=None, type=int)
+    parser.add_argument("--confidence_threshold", default=0.02, type=float)
+    parser.add_argument("--verbose", action="store_true")
 
     args = parser.parse_args()
 
@@ -43,8 +46,8 @@ def main():
 
     ret = subprocess.run(
         [
-            "/home/bjenei/dldemo",
-            "rpndet",
+            args.dldemo_exe,
+            args.dldemo_cmd,
             args.model,
             args.list,
             args.csv_path,
@@ -52,7 +55,7 @@ def main():
             str(args.max_height),
             str(args.confidence_threshold),
             str(args.count),
-            '0'
+            str(int(args.verbose))
         ],
         env=clonedEnv
     )
@@ -95,8 +98,8 @@ def main():
         key=lambda row: (row[0],row[1])
     )
 
-    print( "\n{}: detections: {}".format(testName,len(detections)) )
-    print( "gt: {}\n".format(gtCount) )
+    print( "\n{}\n{}\ndetections: {}".format(testName,len(testName)*'=',len(detections)) )
+    print(           "gt:         {}\n".format(gtCount) )
 
     outputPath = path.expanduser(args.output)
     os.makedirs(outputPath, exist_ok=True)
