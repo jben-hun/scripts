@@ -19,15 +19,14 @@ assert files, "no tests to show"
 
 dataFrames = []
 for i, file in enumerate(files):
-    #df = pd.read_csv(file,sep='\t',header=None,names=["tp","fp","recall","precision","confidence"])
-    df = pd.read_csv(file,sep='\t',header=0)
+    df = pd.read_csv(file,sep='\t',header=None,names=["recall","fp","confidence"])
     df["test"] = os.path.splitext(file)[0]
     dataFrames.append(df)
 
 df = pd.concat(dataFrames)
 
 if args.comparable:
-    fig = px.line(df, x="confidence", y="F1", range_x=[0,1], range_y=[0,1], color="test", height=700, line_shape="linear", render_mode="svg")
+    assert False, "unimplemented"
 else:
     fig = px.line(df, x="fp", y="recall", range_x=[0,2000], range_y=[0,1], color="test", height=700, line_shape="linear", render_mode="svg")
 
