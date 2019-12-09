@@ -7,10 +7,10 @@ def iou(a,b):
     if a[2] < b[0] or b[2] < a[0] or a[3] < b[1] or b[3] < a[1]:
         return 0
 
-    aW = max(0,a[2]-a[0]+1)
-    aH = max(0,a[3]-a[1]+1)
-    bW = max(0,b[2]-b[0]+1)
-    bH = max(0,b[3]-b[1]+1)
+    aW = a[2]-a[0]+1
+    aH = a[3]-a[1]+1
+    bW = b[2]-b[0]+1
+    bH = b[3]-b[1]+1
 
     aArea = aW*aH
     bArea = bW*bH
