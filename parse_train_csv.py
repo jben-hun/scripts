@@ -1,4 +1,4 @@
-#! /usr/bin/ipython3
+#! /usr/bin/python3
 
 import sys, os
 from PIL import Image, ImageDraw

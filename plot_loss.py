@@ -1,103 +1,85 @@
 #! /usr/bin/python3
 
-import matplotlib
-matplotlib.use('GTK3Agg')
+from sys import exit
 import matplotlib.pyplot as plt, numpy as np, sys, os, argparse, scipy.stats as stats
 
-parser = argparse.ArgumentParser()
-parser.add_argument("logfile")
-parser.add_argument("-w", "--window", default=1, type=int)
+BLACKLIST = {"accuracy"}
 
-args = parser.parse_args()
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("logfile")
+    parser.add_argument("test_window_size", type=int)
+    parser.add_argument("train_window_size", type=int)
+    args = parser.parse_args()
 
-path = args.logfile
+    path = args.logfile
+    trainWindow = args.train_window_size
+    testWindow = args.test_window_size
 
-trainWindow = args.window * 100
-testWindow = args.window * 1
+    fig, ax = plt.subplots()
 
-fig, ax = plt.subplots()
+    with open(path, "r") as f:
+        lines = f.readlines()
+        lines = [line.rstrip() for line in lines]
 
-with open(path, "r") as f:
-    lines = f.readlines()
+    testLines =  filter(lambda x: "Testing net" in x or "Test net output" in x, lines)
+    trainLines = filter(lambda x: "s/50 iters), loss = " in x or "Train net output" in x, lines)
 
-trainIterations = []
-trainLossesCls = []
-trainLossesReg = []
+    testLosses,trainLosses,testIterations,trainIterations = {},{},[],[]
 
-testIterations = []
-testLossesCls = []
-testLossesReg = []
+    for line in testLines:
+        found = line.find("Iteration")
+        if found != -1:
+            testIterations.append(int(line[found:].split(" ")[1][:-1]))
+        else:
+            fields = line.split("Test net output")[1].split(" ")
+            name = fields[2]
+            if name not in BLACKLIST:
+                value = float(fields[4])
+                mapAppend(testLosses,name,value)
 
-pattern = "sgd_solver.cpp"
-filteredLines = filter(lambda x: pattern not in x, lines)
+    for line in trainLines:
+        found = line.find("Iteration")
+        if found != -1:
+            trainIterations.append(int(line[found:].split(" ")[1]))
+        else:
+            fields = line.split("Train net output")[1].split(" ")
+            name = fields[2]
+            if name not in BLACKLIST:
+                value = float(fields[4])
+                mapAppend(trainLosses,name,value)
 
-# pattern = " iters), loss = "
-# filteredLines = filter(lambda x: pattern in x, lines)
-# for line in filteredLines:
-#     line = line.rstrip()
-#
-#     start = line.find(pattern)+len(pattern)
-#     loss = float(line[start:])
-#     losses.append(loss)
-#     iterations.append(float( line.split("Iteration")[1].split(' ')[1] ))
+    # plot train losses
+    length = min([ len(v) for v in trainLosses.values() ] + [ len(trainIterations) ])
+    x = np.array(trainIterations)
+    for name,losses in trainLosses.items():
+        y = np.array(losses)
+        yPadded = np.pad(y,(trainWindow-1,0),"edge")
+        y = np.convolve(yPadded, np.ones((trainWindow,))/trainWindow, mode="valid")
+        plt.plot(x[:length],y[:length],label="train "+name)
 
-pattern = " iters), loss = "
-filteredLines = filter(lambda x: pattern in x, lines)
-for line in filteredLines:
-    trainIterations.append(int( line.split("Iteration ")[1].split(' ')[0] ))
+    # plot test losses
+    length = min([ len(v) for v in testLosses.values() ] + [ len(testIterations) ])
+    x = np.array(testIterations)
+    padSize = (testWindow-1)//2, (testWindow-1) - (testWindow-1)//2
+    for name,losses in testLosses.items():
+        y = np.array(losses)
+        yPadded = np.pad(y,(testWindow-1,0),"edge")
+        y = np.convolve(yPadded, np.ones((testWindow,))/testWindow, mode="valid")
+        plt.plot(x[:length],y[:length],label="test "+name)
 
-pattern = "Train net output #1"
-filteredLines = filter(lambda x: pattern in x, lines)
-for line in filteredLines:
-    trainLossesCls.append(float( line.split("rpn_cls_loss = ")[1].split(' ')[0] ))
+    ax.set(xlabel='iterations', ylabel='losses')
+    ax.legend()
+    ax.grid()
+    plt.show()
 
-pattern = "Train net output #2"
-filteredLines = filter(lambda x: pattern in x, lines)
-for line in filteredLines:
-    trainLossesReg.append(float( line.split("rpn_loss_bbox = ")[1].split(' ')[0] ))
 
-pattern = "Testing net (#0)"
-filteredLines = filter(lambda x: pattern in x, lines)
-for line in filteredLines:
-    testIterations.append(int( line.split("Iteration ")[1].split(' ')[0][:-1] ))
 
-pattern = "Test net output #0"
-filteredLines = filter(lambda x: pattern in x, lines)
-for line in filteredLines:
-    testLossesCls.append(float( line.split("rpn_cls_loss = ")[1].split(' ')[0] ))
+def mapAppend(map,key,value):
+    if key in map:
+        map[key].append(value)
+    else:
+        map[key] = [value]
 
-pattern = "Test net output #1"
-filteredLines = filter(lambda x: pattern in x, lines)
-for line in filteredLines:
-    testLossesReg.append(float( line.split("rpn_loss_bbox = ")[1].split(' ')[0] ))
-
-# plot train losses
-y1 = np.array(trainLossesCls)
-y2 = np.array(trainLossesReg)
-x = np.array(trainIterations)
-length = min([ x.shape[0], y1.shape[0], y2.shape[0] ])
-if trainWindow != 1:
-    y1 = np.convolve(y1, np.ones((trainWindow,))/trainWindow, mode="same")
-    y2 = np.convolve(y2, np.ones((trainWindow,))/trainWindow, mode="same")
-
-plt.plot(x[:length],y1[:length],label="train cls")
-plt.plot(x[:length],y2[:length],label="train reg")
-
-# plot test losses
-y1 = np.array(testLossesCls)
-y2 = np.array(testLossesReg)
-x = np.array(testIterations)
-length = min([ x.shape[0], y1.shape[0], y2.shape[0] ])
-if testWindow != 1:
-    y1 = np.convolve(y1, np.ones((testWindow,))/testWindow, mode="same")
-    y2 = np.convolve(y2, np.ones((testWindow,))/testWindow, mode="same")
-
-plt.plot(x[:length],y1[:length],label="test cls")
-plt.plot(x[:length],y2[:length],label="test reg")
-
-ax.set(xlabel='iterations', ylabel='losses')
-ax.legend()
-ax.grid()
-
-#fig.savefig("losses.png")
-plt.show()
+if __name__ == '__main__':
+    main()
