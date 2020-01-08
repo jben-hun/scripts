@@ -1,37 +1,89 @@
 #!/usr/bin/python3
 
+import plotly.graph_objects as go
 import plotly as py
-import plotly_express as px
 import pandas as pd
 from sys import exit
-import os, argparse
+import os, argparse, random
+from itertools import cycle
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-c", "--comparable", action='store_true')
-args = parser.parse_args()
+COLORS = (
+    '#1f77b4',  # muted blue
+    '#ff7f0e',  # safety orange
+    '#2ca02c',  # cooked asparagus green
+    '#d62728',  # brick red
+    '#9467bd',  # muted purple
+    '#8c564b',  # chestnut brown
+    '#e377c2',  # raspberry yogurt pink
+    '#7f7f7f',  # middle gray
+    '#bcbd22',  # curry yellow-green
+    '#17becf'   # blue-teal
+)
 
-contents = os.listdir()
-files = filter(os.path.isfile,contents)
-files = [ file for file in files if os.path.splitext(file)[1] == ".csv" ]
-files.sort()
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--precision", action='store_true')
+    args = parser.parse_args()
 
-assert files, "no tests to show"
+    precision = args.precision
 
-dataFrames = []
-for i, file in enumerate(files):
-    df = pd.read_csv(file,sep='\t',header=None,names=["recall","fp","confidence"])
-    df["test"] = os.path.splitext(file)[0]
-    dataFrames.append(df)
+    contents = os.listdir()
+    files = filter(os.path.isfile,contents)
+    files = [ file for file in files if os.path.splitext(file)[1] == ".csv" ]
+    files.sort()
 
-df = pd.concat(dataFrames)
+    assert files, "no tests to show"
 
-if args.comparable:
-    assert False, "unimplemented"
-else:
-    fig = px.line(df, x="fp", y="recall", range_x=[0,2000], range_y=[0,1], color="test", height=700, line_shape="linear", render_mode="svg")
+    fig = go.Figure(layout=go.Layout(
+        height=None,plot_bgcolor="white",
+        xaxis_title="precision" if precision else "fp",
+        yaxis_title="recall",
+        xaxis={"range":[0,1] if precision else None,"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
+        yaxis={"range":[0,1],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1}
+    ))
 
-fig.update_layout(plot_bgcolor="white")
-fig.update_xaxes(gridcolor='lightGray',gridwidth=1,zerolinecolor="black",zerolinewidth=1)
-fig.update_yaxes(gridcolor='lightGray',gridwidth=1,zerolinecolor="black",zerolinewidth=1)
+    colors = list(COLORS)
+    random.shuffle(colors)
+    colorIterator = cycle(colors)
+    netColors = {}
+    for i, file in enumerate(files):
+        df = pd.read_csv(file,sep='\t',header=None,names=["recall","fp","confidence","precision"])
 
-py.offline.plot(fig, filename=os.path.basename( os.getcwd() ) + ".html")
+        if precision:
+            df = df.sort_values(by=["precision"],ascending=False)
+            maxRecall = 0
+            for index, row in df.iterrows():
+                maxRecall = max(maxRecall,row["recall"])
+                df.at[index,"recall"] = maxRecall
+
+        test = os.path.splitext(file)[0]
+        if "net" in test and "set" in test:
+            specified = True
+            net = test.split("net_")[1].split("_set_")[0]
+            set = test.split("set_")[1].split("_net_")[0]
+        else:
+            specified = False
+            net = test
+            set = test
+
+        if net not in netColors:
+            color = next(colorIterator)
+            netColors[net] = color
+        else:
+            color = netColors[net]
+
+        fig.add_trace(go.Scatter(
+            x=df["precision"] if precision else df["fp"],
+            y=df["recall"],
+            legendgroup=set if specified else None,
+            name="set: "+set+" net: "+net if specified else test,
+            mode="lines",
+            line={"color":color}
+        ))
+
+    py.offline.plot(fig, filename=os.path.basename( os.getcwd() ) + ".html")
+
+
+
+if __name__ == '__main__':
+    main()

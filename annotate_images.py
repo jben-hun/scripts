@@ -30,10 +30,11 @@ with open(csv, 'r') as f:
         d[fileName] = []
         while i+3 < len(boxes):
             d[fileName].append([
-                int(boxes[i]),
-                int(boxes[i+1]),
-                int(boxes[i+2]),
-                int(boxes[i+3])])
+                int(float(boxes[i])),
+                int(float(boxes[i+1])),
+                int(float(boxes[i+2])),
+                int(float(boxes[i+3]))
+            ])
             i += 4
 
 for fileName in d:
