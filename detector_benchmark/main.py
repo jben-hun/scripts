@@ -32,7 +32,7 @@ def main():
     parser.add_argument("--max_height", default=1000, type=int)
     parser.add_argument("--min_height_pair", default=None, type=int)
     parser.add_argument("--max_height_pair", default=None, type=int)
-    parser.add_argument("--confidence_threshold", default=0.02, type=float)
+    parser.add_argument("--confidence_threshold", default=0.01, type=float)
     parser.add_argument("--verbose", action="store_true")
 
     args = parser.parse_args()
@@ -119,11 +119,12 @@ def main():
             else:
                 fp += 1
 
-            if last or not detections[j][1]:
-                data = [ 1*Decimal(tp/gtCount), fp, 1*Decimal(detection[0]) ]
-                data = map(str,data)
-                line = "\t".join(data)+"\n"
-                f.write(line)
+            # if last or not detections[j][1]:
+            data = [ 1*Decimal(tp/gtCount), fp, 1*Decimal(detection[0]), 1*Decimal(tp/(tp+fp)) ]
+            data = map(str,data)
+            line = "\t".join(data)+"\n"
+            f.write(line)
+
 
 
 if __name__ == "__main__":
