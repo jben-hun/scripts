@@ -68,13 +68,9 @@ def main():
 
     assert lenList==len(detectionList), "annotation: {}, detection: {}".format( lenList, len(detectionList) )
 
-    if args.prefix is not None:
-        testName = args.prefix + "_"
-    else:
-        testName = ""
-
+    testName = "net_"+args.prefix+"_" if args.prefix is not None else "net_"
     testName += path.dirname(args.model).split(os.sep)[-1]
-    testName += "_"
+    testName += "_set_"
     testName += path.splitext(path.basename(args.list))[0]
 
     gtCount = 0
