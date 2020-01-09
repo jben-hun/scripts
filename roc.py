@@ -72,13 +72,29 @@ def main():
         else:
             color = netColors[net]
 
+        if precision:
+            hovertemplate = "<b>set: "+set+"<br>net: "+net+"</b><br>precision: %{x:.3f}<br>recall: %{y:.3f}<br>confidence: %{text:.3f}<extra></extra>"
+        else:
+            hovertemplate = "<b>set: "+set+"<br>net: "+net+"</b><br>fp: %{x}<br>recall: %{y:.3f}<br>confidence: %{text:.3f}<extra></extra>"
+
         fig.add_trace(go.Scatter(
             x=df["precision"] if precision else df["fp"],
             y=df["recall"],
             legendgroup=set if specified else None,
             name="set: "+set+" net: "+net if specified else test,
             mode="lines",
-            line={"color":color}
+            hovertemplate=hovertemplate,
+            text=df["confidence"],
+            line={"color":color,"width":1.5}
+        ))
+
+    if precision:
+        fig.add_trace(go.Scatter(
+            x=[0,1],
+            y=[1,0],
+            mode="lines",
+            name="guide",
+            line={"color":"black","width":1,"dash":"dash"}
         ))
 
     py.offline.plot(fig, filename=os.path.basename( os.getcwd() ) + ".html")
