@@ -28,6 +28,7 @@ NV_GPU=$GPU nvidia-docker run --rm -t -d \
     -e DISPLAY \
     -p 0.0.0.0:6006:6006 \
     --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+    --ipc=host \
     $IMAGE
 
 PASSWD_ENTRY="$(getent passwd $USER)"

@@ -115,11 +115,11 @@ def main():
             else:
                 fp += 1
 
-            # if last or not detections[j][1]:
-            data = [ 1*Decimal(tp/gtCount), fp, 1*Decimal(detection[0]), 1*Decimal(tp/(tp+fp)) ]
-            data = map(str,data)
-            line = "\t".join(data)+"\n"
-            f.write(line)
+            if last or not detections[j][1]:
+                data = [ 1*Decimal(tp/gtCount), fp, 1*Decimal(detection[0]), 1*Decimal(tp/(tp+fp)) ]
+                data = map(str,data)
+                line = "\t".join(data)+"\n"
+                f.write(line)
 
 
 
