@@ -6,6 +6,7 @@ import pandas as pd
 from sys import exit
 import os, argparse, random
 from itertools import cycle
+import scipy.signal
 
 COLORS = (
     '#1f77b4',  # muted blue
