@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 
 from sys import exit
-import matplotlib.pyplot as plt, numpy as np, sys, os, argparse, scipy.stats as stats
+import matplotlib.pyplot as plt, numpy as np, sys, os, argparse, scipy.stats as stats, scipy.signal
 
 BLACKLIST = {"accuracy"}
 
@@ -10,6 +10,8 @@ def main():
     parser.add_argument("logfile")
     parser.add_argument("test_window_size", type=int)
     parser.add_argument("train_window_size", type=int)
+    parser.add_argument("-m", "--median", action='store_true')
+    parser.add_argument("-y", "--ylim", type=float)
     args = parser.parse_args()
 
     path = args.logfile
@@ -23,7 +25,7 @@ def main():
         lines = [line.rstrip() for line in lines]
 
     testLines =  filter(lambda x: "Testing net" in x or "Test net output" in x, lines)
-    trainLines = filter(lambda x: "s/50 iters), loss = " in x or "Train net output" in x, lines)
+    trainLines = filter(lambda x: " iters), loss = " in x or "Train net output" in x, lines)
 
     testLosses,trainLosses,testIterations,trainIterations = {},{},[],[]
 
@@ -54,8 +56,11 @@ def main():
     x = np.array(trainIterations)
     for name,losses in trainLosses.items():
         y = np.array(losses)
-        yPadded = np.pad(y,(trainWindow-1,0),"edge")
-        y = np.convolve(yPadded, np.ones((trainWindow,))/trainWindow, mode="valid")
+        if args.median:
+            y = scipy.signal.medfilt(y,trainWindow)
+        else:
+            yPadded = np.pad(y,(trainWindow-1,0),"edge")
+            y = np.convolve(yPadded, np.ones((trainWindow,))/trainWindow, mode="valid")
         plt.plot(x[:length],y[:length],label="train "+name)
 
     # plot test losses
@@ -64,13 +69,19 @@ def main():
     padSize = (testWindow-1)//2, (testWindow-1) - (testWindow-1)//2
     for name,losses in testLosses.items():
         y = np.array(losses)
-        yPadded = np.pad(y,(testWindow-1,0),"edge")
-        y = np.convolve(yPadded, np.ones((testWindow,))/testWindow, mode="valid")
+        if args.median:
+            y = scipy.signal.medfilt(y,trainWindow)
+        else:
+            yPadded = np.pad(y,(testWindow-1,0),"edge")
+            y = np.convolve(yPadded, np.ones((testWindow,))/testWindow, mode="valid")
         plt.plot(x[:length],y[:length],label="test "+name)
 
     ax.set(xlabel='iterations', ylabel='losses')
+    if args.ylim is not None:
+        ax.set_ylim(bottom=0,top=args.ylim)
     ax.legend()
     ax.grid()
+    plt.tight_layout()
     plt.show()
 
 

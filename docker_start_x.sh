@@ -6,7 +6,8 @@ NAME=${2-bjenei}
 #IMAGE=${3-ultinous/camguru:build-CGU-5555-2}
 #IMAGE=${3-ultinous/camguru:build-CGU-5680-1}
 #IMAGE=${3-ultinous/camguru:build-CGU-6137-2}
-IMAGE=${3-ultinous/camguru:build-CGU-6599-1}
+#IMAGE=${3-ultinous/camguru:build-CGU-6599-1}
+IMAGE=${3-ultinous/camguru:build-CGU-4818-21}
 
 NAME=${NAME}_gpu_${GPU//,/_}
 
