@@ -24,6 +24,8 @@ COLORS = (
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--precision", action='store_true')
+    parser.add_argument("-s", "--scales", action='store_true')
+    parser.add_argument("-c", "--confidence", action='store_true')
     args = parser.parse_args()
 
     precision = args.precision
@@ -53,15 +55,28 @@ def main():
         if precision:
             df = df.sort_values(by=["precision"],ascending=False)
             maxRecall = 0
+            minConfidence = 1.0
             for index, row in df.iterrows():
                 maxRecall = max(maxRecall,row["recall"])
+                minConfidence = min(minConfidence,row["confidence"])
                 df.at[index,"recall"] = maxRecall
+                df.at[index,"confidence"] = minConfidence
 
         test = os.path.splitext(file)[0]
         if "net" in test and "set" in test:
             specified = True
+            testSplit = test.split(".")
+            test = testSplit[0]
             net = test.split("net_")[1].split("_set_")[0]
             set = test.split("set_")[1].split("_net_")[0]
+            if len(testSplit) > 1:
+                if args.scales:
+                    if testSplit[1] == "all":
+                        continue
+                    set += "_" + (".".join(testSplit[1:])).upper()
+                elif testSplit[1] != "all":
+                    continue
+
         else:
             specified = False
             net = test
@@ -89,12 +104,29 @@ def main():
             line={"color":color,"width":1.5}
         ))
 
+        if args.confidence:
+            fig.add_trace(go.Scatter(
+                x=df["precision"] if precision else df["fp"],
+                y=df["confidence"],
+                legendgroup=set if specified else None,
+                name="set: "+set+" net: "+net+" confidence" if specified else test+" confidence",
+                mode="lines",
+                line={"color":color,"width":1.5,"dash":"dash"}
+            ))
+
     if precision:
         fig.add_trace(go.Scatter(
             x=[0,1],
             y=[1,0],
             mode="lines",
-            name="guide",
+            name="guide1",
+            line={"color":"black","width":1,"dash":"dash"}
+        ))
+        fig.add_trace(go.Scatter(
+            x=[0,1],
+            y=[0,1],
+            mode="lines",
+            name="guide2",
             line={"color":"black","width":1,"dash":"dash"}
         ))
 

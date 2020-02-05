@@ -5,11 +5,11 @@ from PIL import Image, ImageDraw
 import numpy as np
 from sys import exit
 import numpy as np
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
-# plt.rcParams.update({'font.size': 28})
+plt.rcParams.update({'font.size': 28})
 
-# fig, ax = plt.subplots()
+fig, ax = plt.subplots()
 
 countSet = {}
 
@@ -56,17 +56,15 @@ for line in lines:
         h = y2 - y1 + 1
         boxSize = h
 
-        if min(h,w) < 10:
-            # path = "/home/bjenei/mount/research01/"+line.split('\t')[0]
-            # filename = path.split('/')[-1]
-            # im = Image.open(path)
-            # draw = ImageDraw.Draw(im)
-            # draw.rectangle([(x1,y1),(x2,y2)],outline=(255,0,0,255))
-            # del draw
-            # os.makedirs(key, exist_ok=True)
-            # im.save(key + '/' + filename)
-
-            continue
+        # if min(h,w) < 10:
+        #     # path = "/home/bjenei/mount/research01/"+line.split('\t')[0]
+        #     # filename = path.split('/')[-1]
+        #     # im = Image.open(path)
+        #     # draw = ImageDraw.Draw(im)
+        #     # draw.rectangle([(x1,y1),(x2,y2)],outline=(255,0,0,255))
+        #     # del draw
+        #     # os.makedirs(key, exist_ok=True)
+        #     # im.save(key + '/' + filename)
 
         if key in d:
             d[key].append(boxSize)
@@ -105,17 +103,18 @@ for key in sortedKeys:
 
     print(line)
 
-    # ax.hist(
-    #     a,
-    #     color='g',
-    #     bins=int(round( (np.max(a)-np.min(a)+1)/10 ))
-    # )
-    # plt.title(key)
-    # ax.set_xlim(left=-50,right=600)
-    # ax.set_xticks(list(range(-50,650,50)))
-    # fig.set_size_inches(16, 8) # w,h
-    # fig.savefig("histogram_"+key+".png")
-    # plt.cla()
+    ax.hist(
+        a,
+        color='g',
+        bins=int(round( (np.max(a)-np.min(a)+1)/10 ))
+    )
+    plt.title(key)
+    ax.set_xlim(left=-50,right=600)
+    ax.set_xticks(list(range(-50,650,50)))
+    fig.set_size_inches(16, 8) # w,h
+    fig.savefig("histogram_"+key+".png")
+    plt.cla()
+
 
 
 """

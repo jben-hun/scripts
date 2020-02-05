@@ -10,7 +10,8 @@ from sys import exit
 
 parser = argparse.ArgumentParser()
 parser.add_argument("path")
-parser.add_argument("-c","--count", default=1, type=int, help="input image count")
+parser.add_argument("-c","--count",default=1,type=int,help="input image count")
+parser.add_argument("-i","--ignore",nargs='+',default=["head_det"], help="annotator(s) to ignore")
 args = parser.parse_args()
 
 oldDate = datetime.strptime("1900", "%Y")
@@ -60,8 +61,12 @@ with open( name + ".csv", 'w', newline='' ) as csvfile:
                         heads = []
                         annotator = data[maxI]["annotator"].replace(' ','_').replace('\\','_').replace('/','_')
 
-                        if "head_det" not in annotator:
+                        ignore = False
+                        for name in args.ignore:
+                            if name in annotator:
+                                ignore = True
 
+                        if not ignore:
                             for i in range(len(data[maxI]["objects"])):
                                 object = data[maxI]["objects"][i]
                                 if "head" in object:
