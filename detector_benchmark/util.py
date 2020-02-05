@@ -102,6 +102,15 @@ def maxPair(scores, boxes, boxesGt, threshold, minHeight=None, maxHeight=None):
                 1
             ])
         else:
+
+            if minHeight is not None or maxHeight is not None:
+                selectedIndex = i
+                selected = boxes[selectedIndex]
+                selectedHeight = selected[3] - selected[1] + 1
+                if (minHeight is not None and selectedHeight < minHeight) or \
+                   (maxHeight is not None and selectedHeight > maxHeight):
+                   continue
+
             detections.append([
                 scores[i],
                 0
