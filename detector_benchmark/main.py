@@ -9,6 +9,20 @@ import argparse, os, sys, subprocess
 
 import util
 
+# SCALES = {
+#     "small":(8,176),
+#     "medium":(176,344),
+#     "large":(344,512),
+#     "all":(None,None)
+# }
+
+SCALES = {
+    "small": (16,96),
+    "medium":(96,176),
+    "large": (176,256),
+    "all":   (None,None)
+}
+
 def main():
     getcontext().prec = 6
 
@@ -39,8 +53,6 @@ def main():
 
     annotationList = util.readList(args.list,args.count)
 
-    GLOG_minloglevel=2
-
     clonedEnv = os.environ.copy()
     clonedEnv["GLOG_minloglevel"] = "2"
 
@@ -60,7 +72,7 @@ def main():
         env=clonedEnv
     )
 
-    assert not ret.returncode, ret.returncode
+    assert not ret.returncode, ret
 
     detectionList = util.readList(args.csv_path,args.count,detection=True)
 
@@ -68,58 +80,62 @@ def main():
 
     assert lenList==len(detectionList), "annotation: {}, detection: {}".format( lenList, len(detectionList) )
 
-    testName = "net_"+args.prefix+"_" if args.prefix is not None else "net_"
-    testName += path.dirname(args.model).split(os.sep)[-1]
-    testName += "_set_"
-    testName += path.splitext(path.basename(args.list))[0]
+    for scaleName,scaleRange in SCALES.items():
+        testName = "net_"+args.prefix+"_" if args.prefix is not None else "net_"
+        testName += path.dirname(args.model).split(os.sep)[-1]
+        testName += "_set_"
+        testName += path.splitext(path.basename(args.list))[0]
+        testName += "." + scaleName
 
-    gtCount = 0
-    detections = []
-    for index in range(lenList):
-        #print("{}: {}: {}".format(testName,lenList,index+1))
+        gtCount = 0
+        detections = []
+        for index in range(lenList):
+            #print("{}: {}: {}".format(testName,lenList,index+1))
 
-        annotationBoxes = annotationList[index]["boxes"]
-        detectionScores = detectionList[index]["scores"]
-        detectionBoxes = detectionList[index]["boxes"]
+            annotationBoxes = annotationList[index]["boxes"]
+            detectionScores = detectionList[index]["scores"]
+            detectionBoxes = detectionList[index]["boxes"]
 
-        assert annotationList[index]["image_path"]==detectionList[index]["image_path"], annotationList[index]["image_path"]+" != "+detectionList[index]["image_path"]
+            assert annotationList[index]["image_path"]==detectionList[index]["image_path"], annotationList[index]["image_path"]+" != "+detectionList[index]["image_path"]
 
-        gtCount += len( util.heightFilter(annotationBoxes,minHeight=args.min_height_pair,maxHeight=args.max_height_pair) )
+            gtCount += len( util.heightFilter(annotationBoxes,minHeight=scaleRange[0],maxHeight=scaleRange[1]) )
 
-        detection = util.maxPair(detectionScores,detectionBoxes,annotationBoxes,args.iou_threshold,minHeight=args.min_height_pair,maxHeight=args.max_height_pair)
-        detections.extend(detection)
+            detection = util.maxPair(detectionScores,detectionBoxes,annotationBoxes,args.iou_threshold,minHeight=scaleRange[0],maxHeight=scaleRange[1])
+            detections.extend(detection)
 
-    detections.sort(
-        reverse=True,
-        key=lambda row: (row[0],row[1])
-    )
+        detections.sort(
+            reverse=True,
+            key=lambda row: (row[0],row[1])
+        )
 
-    print( "\n{}\n{}\ndetections: {}".format(testName,len(testName)*'=',len(detections)) )
-    print(           "gt:         {}\n".format(gtCount) )
+        print( "\n{}\n{}\ndetections: {}".format(testName,len(testName)*'=',len(detections)) )
+        print(           "gt:         {}".format(gtCount) )
 
-    outputPath = path.expanduser(args.output)
-    os.makedirs(outputPath, exist_ok=True)
+        outputPath = path.expanduser(args.output)
+        os.makedirs(outputPath, exist_ok=True)
 
-    tCount = gtCount + np.sum( 1 - (np.array(detections)[:,1]) )
+        tCount = gtCount + np.sum( 1 - (np.array(detections)[:,1]) )
 
-    tp,fp = 0,0
-    lenDetections = len(detections)
-    with open( path.join(outputPath, (testName+".csv")), 'w' ) as f:
-        for j in range(1, lenDetections+1):
-            last = (j == lenDetections)
-            i = j - 1
-            detection = detections[i]
+        tp,fp = 0,0
+        lenDetections = len(detections)
+        with open( path.join(outputPath, (testName+".csv")), 'w' ) as f:
+            for j in range(1, lenDetections+1):
+                last = (j == lenDetections)
+                i = j - 1
+                detection = detections[i]
 
-            if detection[1] == 1:
-                tp += 1
-            else:
-                fp += 1
+                if detection[1] == 1:
+                    tp += 1
+                else:
+                    fp += 1
 
-            if last or not detections[j][1]:
-                data = [ 1*Decimal(tp/gtCount), fp, 1*Decimal(detection[0]), 1*Decimal(tp/(tp+fp)) ]
-                data = map(str,data)
-                line = "\t".join(data)+"\n"
-                f.write(line)
+                if last or not detections[j][1]:
+                    data = [ 1*Decimal(tp/gtCount), fp, 1*Decimal(detection[0]), 1*Decimal(tp/(tp+fp)) ]
+                    data = map(str,data)
+                    line = "\t".join(data)+"\n"
+                    f.write(line)
+
+    print()
 
 
 
