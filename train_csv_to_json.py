@@ -18,8 +18,13 @@ def main():
     taskDirs = set()
     train = {}
     with open(args.csv_file,'r') as f:
+        c = 0
         for line in f:
             splitLine = line.rstrip().split('\t')
+
+            c += 1
+            if c%100 == 0:
+                print(c,splitLine[0])
 
             src = splitLine[0]
             dst = path.join(args.output_dir,path.dirname(src).lstrip(os.sep))
@@ -32,10 +37,10 @@ def main():
             objects = []
             i = 0
             while i < len(boxes):
-                x1 = int(boxes[i])
-                y1 = int(boxes[i+1])
-                x2 = int(boxes[i+2])
-                y2 = int(boxes[i+3])
+                x1 = boxes[i]
+                y1 = boxes[i+1]
+                x2 = boxes[i+2]
+                y2 = boxes[i+3]
                 i+=4
 
                 objects.append(

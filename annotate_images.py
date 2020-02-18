@@ -24,18 +24,18 @@ with open(csv, 'r') as f:
         fileName = lineSplit[0]
 
         boxes = lineSplit[1:]
-        boxes = [ boxes[i] for i in range(len(boxes)) if not (i+1)%5==0 ]
 
         i = 0
         d[fileName] = []
-        while i+3 < len(boxes):
+        while i+4 < len(boxes):
             d[fileName].append([
                 int(float(boxes[i])),
                 int(float(boxes[i+1])),
                 int(float(boxes[i+2])),
-                int(float(boxes[i+3]))
+                int(float(boxes[i+3])),
+                int(float(boxes[i+4]))
             ])
-            i += 4
+            i += 5
 
 for fileName in d:
     srcImagePath = fileName
@@ -47,8 +47,9 @@ for fileName in d:
     im = cv.imread(srcImagePath, -1)
 
     for box in d[fileName]:
-        x1,y1,x2,y2 = box
-        cv.rectangle(im,(x1,y1),(x2,y2),(0,0,255),3)
+        x1,y1,x2,y2,c = box
+        color = (0,0,255) if c else (255,0,0)
+        cv.rectangle(im,(x1,y1),(x2,y2),color,3)
 
     print(srcImagePath,dstImagePath)
     os.makedirs( path.dirname(dstImagePath), exist_ok=True )
