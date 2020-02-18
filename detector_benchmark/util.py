@@ -58,17 +58,19 @@ def readList(listFile,count,detection=False):
             boxes_ = [ float(lineSplit[i]) for i in range(count,len(lineSplit)) ]
             boxes_ = [ int(v) if (i+1)%5!=0 else v for i,v in enumerate(boxes_) ]
             boxes = np.reshape( boxes_, (-1,5) )
+            labels = boxes[:,4].tolist()
             boxes = boxes[:,:4].tolist()
             testList.append({
                 "image_path":lineSplit[count-1],
-                "boxes":boxes
+                "boxes":boxes,
+                "labels":labels
             })
 
     testList.sort(key=lambda x: x["image_path"])
 
     return testList
 
-def maxPair(scores, boxes, boxesGt, threshold, minHeight=None, maxHeight=None):
+def maxPair(scores, boxes, labels, boxesGt, threshold, minHeight=None, maxHeight=None, mask=None):
     detections = []
 
     if len(scores) == 0:
@@ -87,39 +89,44 @@ def maxPair(scores, boxes, boxesGt, threshold, minHeight=None, maxHeight=None):
     selectedIndicesJ = cols.tolist()
 
     for i in range(len(scores)):
-        if i in selectedIndicesI and 1 - cost[i][selectedIndicesJ[selectedIndicesI.index(i)]] > threshold:
+        if i in selectedIndicesI:
+            j = selectedIndicesI.index(i)
+            if mask and labels[selectedIndicesJ[j]] == 0:
+                continue
+            if 1 - cost[i][selectedIndicesJ[j]] > threshold:
+                if minHeight is not None or maxHeight is not None:
+                    selectedIndex = selectedIndicesJ[j]
+                    selectedGt = boxesGt[selectedIndex]
+                    selectedHeight = selectedGt[3] - selectedGt[1] + 1
+                    if (minHeight is not None and selectedHeight < minHeight) or \
+                        (maxHeight is not None and selectedHeight > maxHeight):
+                        continue
+                truePositive = True
+            else:
+                truePositive = False
 
-            if minHeight is not None or maxHeight is not None:
-                selectedIndex = selectedIndicesJ[selectedIndicesI.index(i)]
-                selectedGt = boxesGt[selectedIndex]
-                selectedHeight = selectedGt[3] - selectedGt[1] + 1
-                if (minHeight is not None and selectedHeight < minHeight) or \
-                   (maxHeight is not None and selectedHeight > maxHeight):
-                   continue
-
-            detections.append([
-                scores[i],
-                1
-            ])
         else:
-
             if minHeight is not None or maxHeight is not None:
                 selectedIndex = i
                 selected = boxes[selectedIndex]
                 selectedHeight = selected[3] - selected[1] + 1
                 if (minHeight is not None and selectedHeight < minHeight) or \
-                   (maxHeight is not None and selectedHeight > maxHeight):
-                   continue
+                    (maxHeight is not None and selectedHeight > maxHeight):
+                    continue
+            truePositive = False
 
-            detections.append([
-                scores[i],
-                0
-            ])
+        if truePositive:
+            detections.append([scores[i],1])
+        else:
+            detections.append([scores[i],0])
 
     return detections
 
-def heightFilter(l_,minHeight,maxHeight):
+def heightFilter(l_,minHeight,maxHeight,labels=None):
     l = l_[:]
+
+    if labels is not None:
+        l = [ e for i,e in enumerate(l) if labels[i] != 0 ]
 
     if minHeight is not None:
         l = [ e for e in l if e[3]-e[1]+1 >= minHeight ]

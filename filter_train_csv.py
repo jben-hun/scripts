@@ -5,7 +5,7 @@ from sys import exit
 from math import floor, ceil
 import os.path as path
 from pprint import pprint
-import os, argparse
+import os, argparse, shutil
 
 report = {}
 
@@ -35,7 +35,8 @@ with open(file,'r') as f:
 
 lines = [ line[:-1] for line in lines ]
 
-with open( path.splitext(file)[0]+"_filtered"+path.splitext(file)[1], 'w' ) as f:
+shutil.copy( file, path.splitext(file)[0]+"_filter_backup"+path.splitext(file)[1] )
+with open( file, 'w' ) as f:
     for line in lines:
         splitLine = line.split('\t')
         image = splitLine[count-1]
@@ -67,10 +68,26 @@ with open( path.splitext(file)[0]+"_filtered"+path.splitext(file)[1], 'w' ) as f
                 del boxes[i]
                 continue
 
+            # if boxes[i][0] > boxes[i][2]:
+            #     t = boxes[i][0]
+            #     boxes[i][0] = boxes[i][2]
+            #     boxes[i][2] = t
+            #     boxes[i][4] = 0
+            #     error("coordflip: masked")
+            #
+            # if boxes[i][1] > boxes[i][3]:
+            #     t = boxes[i][0]
+            #     boxes[i][1] = boxes[i][3]
+            #     boxes[i][3] = t
+            #     boxes[i][4] = 0
+            #     error("coordflip: masked")
+
             if boxes[i][4] != 1:
                 error("coordone: skipped")
                 del boxes[i]
                 continue
+                # boxes[i][4] = 0
+                # error("coordone: masked")
 
             if boxes[i] in boxes[:i]:
                 error("duplicate: skipped")
