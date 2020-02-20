@@ -48,7 +48,7 @@ def main():
     fig = go.Figure(layout=go.Layout(
         height=None,plot_bgcolor="white",
         xaxis_title="recall" if precision else "fp",
-        yaxis_title="precision" if precision else "recall",
+        yaxis_title="precision"+(" & confidence" if confidence else "") if precision else "recall"+(" & confidence" if confidence else ""),
         xaxis={"range":[0,1] if precision else None,"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
         yaxis={"range":[0,1],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1}
     ))
