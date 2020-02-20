@@ -4,11 +4,13 @@ import plotly.graph_objects as go
 import plotly as py
 import pandas as pd
 from sys import exit
-import os, argparse, random
+import os, argparse, random, datetime
+from os import path
 from itertools import cycle
 import scipy.signal
 import numpy as np
 from scipy import interpolate
+from pprint import pprint
 
 COLORS = (
     '#1f77b4',  # muted blue
@@ -25,17 +27,20 @@ COLORS = (
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--precision", action='store_true')
-    parser.add_argument("-s", "--scales", action='store_true')
-    parser.add_argument("-c", "--confidence", action='store_true')
+    parser.add_argument("-i", "--indir", default=".")
+    parser.add_argument("-o", "--outfile", default=None)
+    parser.add_argument("-p", "--precision", action="store_true")
+    parser.add_argument("-s", "--scales", action="store_true")
+    parser.add_argument("-c", "--confidence", action="store_true")
     args = parser.parse_args()
 
     precision  = args.precision
     confidence = args.confidence
 
-    contents = os.listdir()
-    files = filter(os.path.isfile,contents)
-    files = [ file for file in files if os.path.splitext(file)[1] == ".csv" ]
+    contents = os.listdir(args.indir)
+    files = [ path.join(args.indir,file) for file in contents ]
+    files = filter(path.isfile,files)
+    files = [ file for file in files if path.splitext(file)[1] == ".csv" ]
     files.sort()
 
     assert files, "no tests to show"
@@ -52,10 +57,31 @@ def main():
     # random.shuffle(colors)
     colorIterator = cycle(colors)
     netColors = {}
+    recallMaxes = {}
     for i, file in enumerate(files):
         df = pd.read_csv(file,sep='\t',header=None,names=["recall","fp","confidence","precision"])
 
+        test = path.basename(path.splitext(file)[0])
+        specified,net,set,skip = parseName(test,args.scales)
+        if skip:
+            continue
+
+        if set in recallMaxes:
+            recallMaxes[set] = min( recallMaxes[set], df["recall"].max() )
+        else:
+            recallMaxes[set] = df["recall"].max()
+
+    for i, file in enumerate(files):
+        df = pd.read_csv(file,sep='\t',header=None,names=["recall","fp","confidence","precision"])
+
+        test = path.basename(path.splitext(file)[0])
+        specified,net,set,skip = parseName(test,args.scales)
+        if skip:
+            continue
+
         if precision:
+            df = df[ df["recall"] <= recallMaxes[set] ]
+
             df = df.groupby(["recall"],as_index=False,sort=False)
             df = df.agg({"fp":np.min,"confidence":np.max,"precision":np.max})
             df = df.sort_values(by=["recall"],ascending=False)
@@ -84,26 +110,6 @@ def main():
         else:
             df = df.groupby(["fp"],as_index=False,sort=False)
             df = df.agg({"recall":np.max,"confidence":np.min,"precision":np.max})
-
-        test = os.path.splitext(file)[0]
-        if "net" in test and "set" in test:
-            specified = True
-            testSplit = test.split(".")
-            test = testSplit[0]
-            net = test.split("net_")[1].split("_set_")[0]
-            set = test.split("set_")[1].split("_net_")[0]
-            if len(testSplit) > 1:
-                if args.scales:
-                    if testSplit[1] == "all":
-                        continue
-                    set += "_" + (".".join(testSplit[1:])).upper()
-                elif testSplit[1] != "all":
-                    continue
-
-        else:
-            specified = False
-            net = test
-            set = test
 
         if net not in netColors:
             color = next(colorIterator)
@@ -154,12 +160,42 @@ def main():
             line_shape="linear"
         ))
 
-    py.offline.plot(fig, filename=os.path.basename( os.getcwd() ) + ".html")
+    if args.outfile is None:
+        outName = path.basename( os.getcwd() )
+    else:
+        outName = args.outfile
 
-def isMonotonic(A):
+    outName += ("_pr" if args.precision else "_roc")
+    outName += ("_scales" if args.scales else "")
+    outName += ("_confidence" if args.scales else "")
+    outName += "_" + datetime.datetime.now().strftime("%y%m%d_%H%M%S_%f")
+    outName += ".html"
 
-    return (all(A[i] <= A[i + 1] for i in range(len(A) - 1)) or
-            all(A[i] >= A[i + 1] for i in range(len(A) - 1)))
+    py.offline.plot(fig,filename=outName)
+
+def parseName(test,scales):
+    skip = False
+
+    if "net" in test and "set" in test:
+        specified = True
+        testSplit = test.split(".")
+        test = testSplit[0]
+        net = test.split("net_")[1].split("_set_")[0]
+        set = test.split("set_")[1].split("_net_")[0]
+        if len(testSplit) > 1:
+            if scales:
+                if testSplit[1] == "all":
+                    skip = True
+                set += "_" + (".".join(testSplit[1:])).upper()
+            elif testSplit[1] != "all":
+                skip = True
+
+    else:
+        specified = False
+        net = test
+        set = test
+
+    return specified, net, set, skip
 
 
 if __name__ == '__main__':
