@@ -25,6 +25,8 @@ COLORS = (
     '#17becf'   # blue-teal
 )
 
+EPSILON = 1e-2
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir", default=".")
@@ -49,8 +51,9 @@ def main():
         height=None,plot_bgcolor="white",
         xaxis_title="recall" if precision else "fp",
         yaxis_title="precision"+(" & confidence" if confidence else "") if precision else "recall"+(" & confidence" if confidence else ""),
-        xaxis={"range":[0,1] if precision else None,"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
-        yaxis={"range":[0,1],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1}
+        xaxis={"range":[0-EPSILON,1+EPSILON] if precision else None,"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
+        yaxis={"range":[0-EPSILON,1+EPSILON],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
+        legend={"tracegroupgap":15}
     ))
 
     colors = list(COLORS)
@@ -117,13 +120,13 @@ def main():
         else:
             color = netColors[net]
 
-        hovertemplate = "<b>set "+set+"<br>net "+net+"</b><br>"+("recall" if precision else "fp")+" %{x}<br>"+("precision" if precision else "recall")+": %{y:.3f}<br>confidence %{text:.3f}<extra></extra>"
+        hovertemplate = "<b>set:</b> {:}<br><b>net:</b> {:}<br>".format(set,net)+("<b>recall</b>" if precision else "<b>fp</b>")+" %{x}<br>"+("<b>precision</b>" if precision else "<b>recall</b>")+": %{y:.3f}<br><b>confidence</b> %{text:.3f}<extra></extra>"
 
         fig.add_trace(go.Scatter(
             x=df["recall"] if precision else df["fp"],
             y=df["precision"] if precision else df["recall"],
             legendgroup=set if specified else None,
-            name=("AUC {:.3f} AP {:.3f} ".format(areaUnderCurve,averagePrecision) if precision else "")+"set "+set+" net "+net if specified else test,
+            name=("<b>auc/ap:</b> {:.3f}/{:.3f} ".format(areaUnderCurve,averagePrecision) if precision else "") + ("<b>set:</b> {:} <b>net:</b> {:}".format(set,net) if specified else "<b>{:}</b>".format(test)),
             mode="lines",
             hovertemplate=hovertemplate,
             text=df["confidence"],
@@ -136,7 +139,8 @@ def main():
                 x=df["recall"] if precision else df["fp"],
                 y=df["confidence"],
                 legendgroup=set if specified else None,
-                name="set: "+set+" net: "+net+" confidence" if specified else test+" confidence",
+                #name="<b>set:</b> {:} <b>net:</b> {:} confidence: {:}".format(set,net,confidence) if specified else "<b>{:}</b> confidence: {:}".format(test,confidence),
+                name="confidence",
                 mode="lines",
                 line={"color":color,"width":1.5,"dash":"dash"},
                 line_shape="linear"
