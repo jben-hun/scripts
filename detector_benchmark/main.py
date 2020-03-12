@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--dldemo_exe", default="/home/bjenei/dldemo")
     parser.add_argument("--dldemo_cmd", default="rpndet")
     parser.add_argument("--iou_threshold", default=0.5, type=float)
-    parser.add_argument("--csv_path", default="/home/bjenei/rpn_det.csv")
+    parser.add_argument("--csv_path", default="/tmp/rpn_det.csv")
     parser.add_argument("--min_height", default=1, type=int)
     parser.add_argument("--max_height", default=1000, type=int)
     parser.add_argument("--min_height_pair", default=None, type=int)
@@ -51,7 +51,7 @@ def main():
         annotationListFile = args.list,
         annotationType = "head",
         detectionListFile = args.csv_path,
-        detectionType = "body",
+        detectionType = "head",
         outputDir = args.output,
         modelName = path.dirname(args.model).split(os.sep)[-1],
         datasetName = path.splitext(path.basename(args.list))[0],
