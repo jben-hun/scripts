@@ -25,22 +25,32 @@ for line in lines:
         continue
     key = '/'.join((line.split('\t')[0]).split('/')[:-1])
     key = key.replace('/','_')
-    if "rossmann" in key:
+    if "v3_rossmann" in key:
         key = "rossmann"
-    elif "film" in key:
+    elif "v4_rossmann" in key:
+        key = "rossmann2"
+    elif "v3_film" in key:
         key = "film"
+    elif "v4_film" in key:
+        key = "youtube_film"
     elif "10.100.22." in key:
-        key = "budapestpark"
-    elif "Elephant" in key:
-        key = "elephant"
-    elif "HollywoodHeads" in key:
-        key = "hollywoodheads"
-    elif "MPII" in key:
-        key = "mpii"
-    elif "(2665)" in key:
-        key = "elms"
+        key = "Budapest_Park"
     elif "brainwash" in key:
         key = "brainwash"
+    elif "elephant" in key:
+        key = "Sansbury_Elephant"
+    elif "hollywood" in key:
+        key = "HollywoodHeads"
+    elif "mpii" in key:
+        key = "MPII"
+    elif "cuhk" in key:
+        key = "CUHK_SYSU_Person_Search_Dataset_Complement"
+    elif "scut_a" in key:
+        key = "SCUT_HEAD_Part_A"
+    elif "scut_b" in key:
+        key = "SCUT_HEAD_Part_B"
+    elif "nine_elms" in key:
+        key = "Sansbury_Nine"
 
     boxes = line[:-1].split('\t')[1:]
     boxes = [i for i in boxes if i != '']
@@ -105,13 +115,14 @@ for key in sortedKeys:
 
     ax.hist(
         a,
-        color='g',
+        color='b',
         bins=int(round( (np.max(a)-np.min(a)+1)/10 ))
     )
     plt.title(key)
     ax.set_xlim(left=-50,right=600)
     ax.set_xticks(list(range(-50,650,50)))
-    fig.set_size_inches(16, 8) # w,h
+    # fig.set_size_inches(16, 8) # w,h
+    fig.set_size_inches(16, 10) # w,h
     fig.savefig("histogram_"+key+".png")
     plt.cla()
 

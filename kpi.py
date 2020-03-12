@@ -45,6 +45,7 @@ def main():
     header = [ "target_precision","precision","recall","confidence","fp" ]
     rows = [ header ]
 
+    recalls = []
     for target_precision in args.precisions:
         argMin = np.abs(df["precision"].values - target_precision).argmin()
 
@@ -55,6 +56,9 @@ def main():
 
         row = [ target_precision,precision,recall,confidence,fp ]
         rows.append(row)
+        recalls.append(recall)
+
+    averageRecall = np.mean(recalls,dtype=np.float64)
 
     os.makedirs( path.dirname(outfile), exist_ok=True )
     with open(outfile,"w") as f:
@@ -62,6 +66,8 @@ def main():
             row = [ str(e) for e in row ]
             line = ",".join(row)
             f.write(line+"\n")
+        f.write("average_recall"+"\n")
+        f.write(str(averageRecall)+"\n")
 
 
 
