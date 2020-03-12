@@ -7,7 +7,7 @@ from sys import exit
 
 def main():
     parser = argparse.ArgumentParser()
-    # parser.add_argument("file")
+    # parser.add_argument("infile")
     args = parser.parse_args()
 
 

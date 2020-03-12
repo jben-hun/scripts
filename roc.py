@@ -38,6 +38,7 @@ def main():
 
     precision  = args.precision
     confidence = args.confidence
+    scales     = args.scales
 
     contents = os.listdir(args.indir)
     files = [ path.join(args.indir,file) for file in contents ]
@@ -65,7 +66,7 @@ def main():
         df = pd.read_csv(file,sep='\t',header=None,names=["recall","fp","confidence","precision"])
 
         test = path.basename(path.splitext(file)[0])
-        specified,net,set,skip = parseName(test,args.scales)
+        specified,net,set,skip = parseName(test,scales)
         if skip:
             continue
 
@@ -78,7 +79,7 @@ def main():
         df = pd.read_csv(file,sep='\t',header=None,names=["recall","fp","confidence","precision"])
 
         test = path.basename(path.splitext(file)[0])
-        specified,net,set,skip = parseName(test,args.scales)
+        specified,net,set,skip = parseName(test,scales)
         if skip:
             continue
 
@@ -169,9 +170,9 @@ def main():
     else:
         outName = args.outfile
 
-    outName += ("_pr" if args.precision else "_roc")
-    outName += ("_scales" if args.scales else "")
-    outName += ("_confidence" if args.scales else "")
+    outName += ("_pr" if precision else "_roc")
+    outName += ("_scales" if scales else "")
+    outName += ("_confidence" if confidence else "")
     outName += "_" + datetime.datetime.now().strftime("%y%m%d_%H%M%S_%f")
     outName += ".html"
 
