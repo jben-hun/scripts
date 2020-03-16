@@ -1,69 +1,83 @@
 #!/usr/bin/python3
 
+"""
+This script is meant to produce various performance curves of convolutional
+neural networks. It reads all .csv files from a specified folder, plots a curve,
+and writes it to an interactive .html file.
+
+Each .csv file is a result of a single model evaluated on a dataset.
+
+The naming of a .csv should include the following two elements, in any order:
+- The "net_" keyword, followed by a string identifying the neural network model.
+- The "set_" keywork, followed by a string identifying the dataset.
+
+The column structure of the .csv files should be:
+- recall, fp, confidence, precision
+in this order, where fp denotes the ammount of false positives.
+
+See detector_benchmark/pair.py
+"""
+
+import os
+import argparse
+import random
+import datetime
+import scipy.signal
+import textwrap
 import plotly.graph_objects as go
 import plotly as py
 import pandas as pd
+import numpy as np
 from sys import exit
-import os, argparse, random, datetime
 from os import path
 from itertools import cycle
-import scipy.signal
-import numpy as np
 from scipy import interpolate
 from pprint import pprint
 
 COLORS = (
-    '#1f77b4',  # muted blue
-    '#ff7f0e',  # safety orange
-    '#2ca02c',  # cooked asparagus green
-    '#d62728',  # brick red
-    '#9467bd',  # muted purple
-    '#8c564b',  # chestnut brown
-    '#e377c2',  # raspberry yogurt pink
-    '#7f7f7f',  # middle gray
-    '#bcbd22',  # curry yellow-green
-    '#17becf'   # blue-teal
+    '#1f77b4', # muted blue
+    '#ff7f0e', # safety orange
+    '#2ca02c', # cooked asparagus green
+    '#d62728', # brick red
+    '#9467bd', # muted purple
+    '#8c564b', # chestnut brown
+    '#e377c2', # raspberry yogurt pink
+    '#7f7f7f', # middle gray
+    '#bcbd22', # curry yellow-green
+    '#17becf'  # blue-teal
 )
 
 EPSILON = 1e-2
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--indir", default=".")
-    parser.add_argument("-o", "--outfile", default=None)
-    parser.add_argument("-p", "--precision", action="store_true")
-    parser.add_argument("-s", "--scales", action="store_true")
-    parser.add_argument("-c", "--confidence", action="store_true")
-    args = parser.parse_args()
+    args = parseArguments()
 
     precision  = args.precision
     confidence = args.confidence
     scales     = args.scales
 
     contents = os.listdir(args.indir)
-    files = [ path.join(args.indir,file) for file in contents ]
-    files = filter(path.isfile,files)
-    files = [ file for file in files if path.splitext(file)[1] == ".csv" ]
+    contents = [ path.join(args.indir,content) for content in contents ]
+    files = [ content for content in contents if isCsvFile(content) ]
     files.sort()
 
     assert files, "no tests to show"
 
-    fig = go.Figure(layout=go.Layout(
-        height=None,plot_bgcolor="white",
+    fig = createFigure(
         xaxis_title="recall" if precision else "fp",
         yaxis_title="precision"+(" & confidence" if confidence else "") if precision else "recall"+(" & confidence" if confidence else ""),
         xaxis={"range":[0-EPSILON,1+EPSILON] if precision else None,"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
-        yaxis={"range":[0-EPSILON,1+EPSILON],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
-        legend={"tracegroupgap":15}
-    ))
+        yaxis={"range":[0-EPSILON,1+EPSILON],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1}
+    )
 
     colors = list(COLORS)
-    # random.shuffle(colors)
+    if args.random_color:
+        random.shuffle(colors)
     colorIterator = cycle(colors)
     netColors = {}
     recallMaxes = {}
     for i, file in enumerate(files):
-        df = pd.read_csv(file,sep='\t',header=None,names=["recall","fp","confidence","precision"])
+        df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=["recall","fp","confidence","precision"])
 
         test = path.basename(path.splitext(file)[0])
         specified,net,set,skip = parseName(test,scales)
@@ -76,7 +90,7 @@ def main():
             recallMaxes[set] = df["recall"].max()
 
     for i, file in enumerate(files):
-        df = pd.read_csv(file,sep='\t',header=None,names=["recall","fp","confidence","precision"])
+        df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=["recall","fp","confidence","precision"])
 
         test = path.basename(path.splitext(file)[0])
         specified,net,set,skip = parseName(test,scales)
@@ -86,22 +100,19 @@ def main():
         if precision:
             df = df[ df["recall"] <= recallMaxes[set] ]
 
-            df = df.groupby(["recall"],as_index=False,sort=False)
-            df = df.agg({"fp":np.min,"confidence":np.max,"precision":np.max})
-            df = df.sort_values(by=["recall"],ascending=False)
+            df = (
+                df.groupby(["recall"],as_index=False,sort=False)
+                .agg({"fp":np.min,"confidence":np.max,"precision":np.max})
+                .sort_values(by=["recall"],ascending=False)
+            )
 
-            maxPrecision = 0
-            maxConfidence = 0
-            for index, row in df.iterrows():
-                maxPrecision = max(maxPrecision,row["precision"])
-                maxConfidence = max(maxConfidence,row["confidence"])
-                df.at[index,"precision"] = maxPrecision
-                df.at[index,"confidence"] = maxConfidence
+            df["precision"] = df["precision"].cummax()
+            df["confidence"] = df["confidence"].cummax()
 
             df = df.iloc[::-1]
 
-            x = df["recall"].values
-            y = df["precision"].values
+            x = df["recall"].to_numpy()
+            y = df["precision"].to_numpy()
             x_ = np.linspace(0,1,num=11)
 
             # f = interpolate.interp1d(x, y, fill_value="extrapolate")
@@ -109,11 +120,13 @@ def main():
             y_ = np.interp(x_, x, y, right=0)
             averagePrecision = np.mean(y_,dtype=np.float64)
 
-            areaUnderCurve = np.trapz(df["precision"].values,df["recall"].values)
+            areaUnderCurve = np.trapz(y,x)
 
         else:
-            df = df.groupby(["fp"],as_index=False,sort=False)
-            df = df.agg({"recall":np.max,"confidence":np.min,"precision":np.max})
+            df = (
+                df.groupby(["fp"],as_index=False,sort=False)
+                .agg({"recall":np.max,"confidence":np.min,"precision":np.max})
+            )
 
         if net not in netColors:
             color = next(colorIterator)
@@ -121,49 +134,63 @@ def main():
         else:
             color = netColors[net]
 
-        hovertemplate = "<b>set:</b> {:}<br><b>net:</b> {:}<br>".format(set,net)+("<b>recall</b>" if precision else "<b>fp</b>")+" %{x}<br>"+("<b>precision</b>" if precision else "<b>recall</b>")+": %{y:.3f}<br><b>confidence</b> %{text:.3f}<extra></extra>"
-
-        fig.add_trace(go.Scatter(
+        addScatterTrace(
+            fig=fig,
             x=df["recall"] if precision else df["fp"],
             y=df["precision"] if precision else df["recall"],
             legendgroup=set if specified else None,
-            name=("<b>auc/ap:</b> {:.3f}/{:.3f} ".format(areaUnderCurve,averagePrecision) if precision else "") + ("<b>set:</b> {:} <b>net:</b> {:}".format(set,net) if specified else "<b>{:}</b>".format(test)),
-            mode="lines",
-            hovertemplate=hovertemplate,
+            name=(
+                  ("<b>auc/ap:</b> {:.3f}/{:.3f} ".format(areaUnderCurve,averagePrecision) if precision else "")
+                + ("<b>set:</b> {:} <b>net:</b> {:}".format(cutLonger(set),cutLonger(net)) if specified else "<b>{:}</b>".format(test))
+            ),
+            hovertemplate=(
+                  "<b>set:</b> {:}<br><b>net:</b> {:}<br>".format(set,net)
+                + ("<b>recall</b>" if precision else "<b>fp</b>")+" %{x}<br>"
+                + ("<b>precision</b>" if precision else "<b>recall</b>")
+                + ": %{y:.3f}<br><b>confidence</b> %{text:.3f}<extra></extra>"
+            ),
             text=df["confidence"],
-            line={"color":color,"width":1.5},
-            line_shape="linear"
-        ))
+            color=color,
+            dash=None
+        )
 
         if confidence:
-            fig.add_trace(go.Scatter(
+            addScatterTrace(
+                fig=fig,
                 x=df["recall"] if precision else df["fp"],
                 y=df["confidence"],
                 legendgroup=set if specified else None,
-                #name="<b>set:</b> {:} <b>net:</b> {:} confidence: {:}".format(set,net,confidence) if specified else "<b>{:}</b> confidence: {:}".format(test,confidence),
                 name="confidence",
-                mode="lines",
-                line={"color":color,"width":1.5,"dash":"dash"},
-                line_shape="linear"
-            ))
+                hovertemplate=None,
+                text=None,
+                color=color,
+                dash="dash"
+            )
 
     if precision:
-        fig.add_trace(go.Scatter(
+        addScatterTrace(
+            fig=fig,
             x=[0,1],
             y=[1,0],
-            mode="lines",
+            legendgroup=None,
             name="guide1",
-            line={"color":"black","width":1,"dash":"dash"},
-            line_shape="linear"
-        ))
-        fig.add_trace(go.Scatter(
+            hovertemplate=None,
+            text=None,
+            color="black",
+            dash="dashdot"
+        )
+
+        addScatterTrace(
+            fig=fig,
             x=[0,1],
             y=[0,1],
-            mode="lines",
+            legendgroup=None,
             name="guide2",
-            line={"color":"black","width":1,"dash":"dash"},
-            line_shape="linear"
-        ))
+            hovertemplate=None,
+            text=None,
+            color="black",
+            dash="dashdot"
+        )
 
     if args.outfile is None:
         outName = path.basename( os.getcwd() )
@@ -201,6 +228,57 @@ def parseName(test,scales):
         set = test
 
     return specified, net, set, skip
+
+def isCsvFile(file):
+    return path.isfile(file) and path.splitext(file)[1] == ".csv"
+
+def createFigure(xaxis_title,yaxis_title,xaxis,yaxis):
+    return go.Figure(layout=go.Layout(
+        height=None,
+        plot_bgcolor="white",
+        xaxis_title=xaxis_title,
+        yaxis_title=yaxis_title,
+        xaxis=xaxis,
+        yaxis=yaxis,
+        legend={"tracegroupgap":15},
+        margin={"r":500}
+    ))
+
+def addScatterTrace(fig,x,y,legendgroup,name,hovertemplate,text,color,dash):
+    fig.add_trace(go.Scatter(
+        x=x,
+        y=y,
+        legendgroup=legendgroup,
+        name=name,
+        mode="lines",
+        hovertemplate=hovertemplate,
+        line={"color":color,"width":1.5,"dash":dash},
+        #line_shape="linear",
+        text=text
+    ))
+
+def unescape(s):
+    return bytes(s, "utf-8").decode("unicode_escape")
+
+def parseArguments():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-i", "--indir", default=".")
+    parser.add_argument("-o", "--outfile", default=None)
+    parser.add_argument("-p", "--precision", action="store_true")
+    parser.add_argument("-s", "--scales", action="store_true")
+    parser.add_argument("-c", "--confidence", action="store_true")
+    parser.add_argument("-r", "--random_color", action="store_true")
+    parser.add_argument("-d", "--delimiter",default="\t")
+
+    return parser.parse_args()
+
+def htmlWrap(s,width=15):
+    return "<br>".join(textwrap.wrap(s,width=width))
+
+def cutLonger(s,n=15):
+    return s if len(s) <= n else s[:n//2]+"..."+s[-n//2:]
+
 
 
 if __name__ == '__main__':
