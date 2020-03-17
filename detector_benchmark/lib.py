@@ -51,7 +51,7 @@ def iou(a,aType,b,bType):
         bArea = bW*bH
         unionArea = aArea+bArea-intersectionArea
 
-    return intersectionArea/unionArea if unionArea !=0 else 0
+    return intersectionArea/unionArea if unionArea != 0 else 0
 
 def readList(listFile,count,detection=False,delimiter="\t"):
     testList = []
@@ -92,7 +92,7 @@ def readList(listFile,count,detection=False,delimiter="\t"):
 
     return testList
 
-def maxPair(scores, boxes, detectionType, labels, boxesGt, annotationType, threshold, minHeight=None, maxHeight=None, mask=False):
+def maxPair(scores,boxes,detectionType,labels,boxesGt,annotationType,threshold,minHeight,maxHeight):
     detections = []
 
     if len(scores) == 0:
@@ -113,16 +113,9 @@ def maxPair(scores, boxes, detectionType, labels, boxesGt, annotationType, thres
     for i in range(len(scores)):
         if i in selectedIndicesI:
             j = selectedIndicesI.index(i)
-            if mask and labels[selectedIndicesJ[j]] == 0:
+            if labels[selectedIndicesJ[j]] == 0:
                 continue
             if 1 - cost[i][selectedIndicesJ[j]] > threshold:
-                if minHeight is not None or maxHeight is not None:
-                    selectedIndex = selectedIndicesJ[j]
-                    selectedGt = boxesGt[selectedIndex]
-                    selectedHeight = selectedGt[3] - selectedGt[1] + 1
-                    if (minHeight is not None and selectedHeight < minHeight) or \
-                        (maxHeight is not None and selectedHeight > maxHeight):
-                        continue
                 truePositive = True
             else:
                 truePositive = False
@@ -144,15 +137,22 @@ def maxPair(scores, boxes, detectionType, labels, boxesGt, annotationType, thres
 
     return detections
 
-def heightFilter(l_,minHeight,maxHeight,labels=None):
-    l = l_[:]
+def annotationFilter(boxes,labels,minHeight,maxHeight,maskOutliers):
+    npBoxes = np.array(boxes)
+    npLabels = np.array(labels)
 
-    if labels is not None:
-        l = [ e for i,e in enumerate(l) if labels[i] != 0 ]
+    boolMask = (npLabels == 0)
+
+    if maskOutliers:
+        boolMask = np.logical_or(boolMask, npBoxes[:,1] < 0)
 
     if minHeight is not None:
-        l = [ e for e in l if e[3]-e[1]+1 >= minHeight ]
-    if maxHeight is not None:
-        l = [ e for e in l if e[3]-e[1]+1 <= maxHeight ]
+        boolMask = np.logical_or(boolMask, npBoxes[:,3]-npBoxes[:,1]+1 < minHeight)
 
-    return l
+    if maxHeight is not None:
+        boolMask = np.logical_or(boolMask, npBoxes[:,3]-npBoxes[:,1]+1 > maxHeight)
+
+    npBoxes = npBoxes[np.logical_not(boolMask)]
+    npLabels[boolMask] = 0
+
+    return npBoxes.tolist(), npLabels.tolist()

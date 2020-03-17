@@ -95,8 +95,6 @@ def main():
             if skip:
                 continue
 
-            df = df[ df["recall"] <= recallMaxes[set] ]
-
             df = (
                 df.groupby(["recall"],as_index=False,sort=False)
                 .agg({"fp":np.min,"confidence":np.max,"precision":np.max})
@@ -108,14 +106,17 @@ def main():
 
             df = df.iloc[::-1]
 
-            x = df["recall"].to_numpy()
-            y = df["precision"].to_numpy()
+            x = df[ df["recall"] <= recallMaxes[set] ]["recall"].to_numpy()
+            y = df[ df["recall"] <= recallMaxes[set] ]["precision"].to_numpy()
             x_ = np.linspace(0,1,num=11)
 
             # f = interpolate.interp1d(x, y, fill_value="extrapolate")
             # y_ = f(x_)
-            y_ = np.interp(x_, x, y, right=0)
-            averagePrecision = np.mean(y_,dtype=np.float64)
+            if x.size:
+                y_ = np.interp(x_, x, y, right=0)
+                averagePrecision = np.mean(y_,dtype=np.float64)
+            else:
+                averagePrecision = 0
 
             areaUnderCurve = np.trapz(y,x)
 
