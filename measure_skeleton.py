@@ -5,8 +5,8 @@ import json
 import numpy as np
 import pandas as pd
 
-import detector_benchmark.util as util
-import detector_benchmark.pair as pair
+import detector_benchmark.lib as lib
+import detector_benchmark.detection_parser as pair
 
 
 def open_dataset(filename):
@@ -63,12 +63,12 @@ def extract_detections_skeletons(annotationList, annotationType, detectionList, 
         assert annotationList[index]["image_path"] == detectionList[index]["image_path"], \
             "{} != {}".format(annotationList[index]["image_path"], detectionList[index]["image_path"])
 
-        filteredAnnotationBoxes = util.heightFilter(annotationBoxes, minHeight=scaleRange[0], maxHeight=scaleRange[1],
+        filteredAnnotationBoxes = lib.heightFilter(annotationBoxes, minHeight=scaleRange[0], maxHeight=scaleRange[1],
                                                     labels=annotationLabels if mask else None)
         positiveCount = len(filteredAnnotationBoxes)
         gtCount += positiveCount
 
-        detection = util.max_pair(detectionSkeletons, detectionScores, detectionType, annotationBoxes, annotationLabels,
+        detection = lib.max_pair(detectionSkeletons, detectionScores, detectionType, annotationBoxes, annotationLabels,
                                   annotationType, -scoreThreshold, minHeight=scaleRange[0], maxHeight=scaleRange[1],
                                   mask=mask, cost_fun=skeleton_cost)
         detections.extend(detection)
@@ -79,7 +79,7 @@ def main():
     parser = create_arg_parser()
     args = parser.parse_args()
 
-    gt_dataset = util.readList(args.gt_path, count=1, detection=False)
+    gt_dataset = lib.readList(args.gt_path, count=1, detection=False)
     query_dataset = open_dataset(args.query_path)
     query_filename_to_ind = {f["filename"]: ind for ind, f in enumerate(query_dataset)}
 

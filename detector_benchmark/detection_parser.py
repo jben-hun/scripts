@@ -1,12 +1,35 @@
 #!/usr/bin/python3
 
+"""
+Using detections and annotations, this script does a maximal pairing between
+them, and oututs a resulting .csv file that can be used to plot performance
+curves.
+
+Format of a line in the input .csv files:
+"/path/to/image.jpg x1 y1 x2 y2 c x1 y1 x2 y2 c ..."
+- (x1,y1): upper left corner of an object bounding box (bb).
+- (x2,y2): lower right corner of bb.
+- x coordinates increase from left to right, y coordinates increase from top to
+  bottom.
+- Width of a bb: x2-x1+1
+- c: Class identifier for annotations, and detection confidence in the [0.0,1.0]
+     range for detections.
+
+Format of the output .csv file:
+- recall, fp, confidence, precision
+
+See curve_plotter.py
+"""
+
+import os
+import argparse
 import numpy as np
 from pprint import pprint
 from sys import exit
 from os import path
 import os, argparse
 
-from . import util
+from . import lib
 
 # SCALES = {
 #     "small":(8,176),
@@ -23,35 +46,21 @@ SCALES = {
 }
 
 def main():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--annotations", required=True)
-    parser.add_argument("--annotation_type", choices=["head","body"], required=True)
-    parser.add_argument("--detections", required=True)
-    parser.add_argument("--detection_type", choices=["head","body"], required=True)
-    parser.add_argument("--output_dir", required=True)
-    parser.add_argument("--model_name", required=True)
-    parser.add_argument("--dataset_name", required=True)
-    parser.add_argument("--iou_threshold", type=float, required=True)
-
-    parser.add_argument("-c" ,"--count", default=1, type=int)
-    parser.add_argument("-p", "--prefix")
-    parser.add_argument("-m", "--mask", action="store_true")
-
-    args = parser.parse_args()
+    args = parseArguments()
 
     run(
         annotationListFile = args.annotations,
         annotationType = args.annotation_type,
         detectionListFile = args.detections,
         detectionType = args.detection_type,
-        outputDir = args.output_dir,
+        outDir=args.outdir,
         modelName = args.model_name,
         datasetName = args.dataset_name,
         iouThreshold = args.iou_threshold,
         count = args.count,
         prefix = args.prefix,
-        mask = args.mask
+        mask=args.mask,
+        delimiter=args.delimiter
     )
 
 
@@ -68,12 +77,12 @@ def extract_detections(annotationList, annotationType, detectionList, detectionT
         assert annotationList[index]["image_path"] == detectionList[index]["image_path"], \
             "{} != {}".format(annotationList[index]["image_path"], detectionList[index]["image_path"])
 
-        filteredAnnotationBoxes = util.heightFilter(annotationBoxes, minHeight=scaleRange[0], maxHeight=scaleRange[1],
+        filteredAnnotationBoxes = lib.heightFilter(annotationBoxes, minHeight=scaleRange[0], maxHeight=scaleRange[1],
                                                     labels=annotationLabels if mask else None)
         positiveCount = len(filteredAnnotationBoxes)
         gtCount += positiveCount
 
-        detection = util.maxPair(detectionScores, detectionBoxes, detectionType, annotationLabels, annotationBoxes,
+        detection = lib.maxPair(detectionScores, detectionBoxes, detectionType, annotationLabels, annotationBoxes,
                                  annotationType, iouThreshold, minHeight=scaleRange[0], maxHeight=scaleRange[1],
                                  mask=mask)
         detections.extend(detection)
@@ -119,9 +128,9 @@ def eval_scales(annotationList, annotationType, detectionList, detectionType, io
     return statistics
 
 
-def run(annotationListFile,annotationType,detectionListFile,detectionType,outputDir,modelName,datasetName,iouThreshold,count=1,prefix="",mask=False):
-    annotationList = util.readList(annotationListFile,count)
-    detectionList = util.readList(detectionListFile,count,detection=True)
+def run(annotationListFile,annotationType,detectionListFile,detectionType,outDir,modelName,datasetName,iouThreshold=0.5,count=1,prefix=None,mask=False,delimiter="\t"):
+    annotationList = lib.readList(annotationListFile,count,delimiter=delimiter)
+    detectionList = lib.readList(detectionListFile,count,detection=True,delimiter=delimiter)
     lenList = len(annotationList)
     assert lenList==len(detectionList), "annotation: {}, detection: {}".format( lenList, len(detectionList) )
 
@@ -142,21 +151,24 @@ def run(annotationListFile,annotationType,detectionListFile,detectionType,output
 
             assert annotationList[index]["image_path"]==detectionList[index]["image_path"], annotationList[index]["image_path"]+" != "+detectionList[index]["image_path"]
 
-            filteredAnnotationBoxes = util.heightFilter(annotationBoxes,minHeight=scaleRange[0],maxHeight=scaleRange[1],labels=annotationLabels if mask else None)
+            filteredAnnotationBoxes = lib.heightFilter(annotationBoxes,minHeight=scaleRange[0],maxHeight=scaleRange[1],labels=annotationLabels if mask else None)
             positiveCount = len( filteredAnnotationBoxes )
             gtCount += positiveCount
 
-            detection = util.maxPair(detectionScores,detectionBoxes,detectionType,annotationLabels,annotationBoxes,annotationType,iouThreshold,minHeight=scaleRange[0],maxHeight=scaleRange[1],mask=mask)
+            detection = lib.maxPair(detectionScores,detectionBoxes,detectionType,annotationLabels,annotationBoxes,annotationType,iouThreshold,minHeight=scaleRange[0],maxHeight=scaleRange[1],mask=mask)
             detections.extend(detection)
 
         print( "\n{}\n{}\ndetections: {}".format(testName,len(testName)*'=',len(detections)) )
         print(           "gt:         {}".format(gtCount) )
 
+        if not gtCount:
+            continue
+
         detections.sort(
             reverse=True,
             key=lambda row: (row[0],row[1]))
 
-        outputPath = path.expanduser(outputDir)
+        outputPath = path.expanduser(outDir)
         os.makedirs(outputPath, exist_ok=True)
 
         tp,fp = 0,0
@@ -176,6 +188,25 @@ def run(annotationListFile,annotationType,detectionListFile,detectionType,output
                 f.write(line)
 
     print()
+
+def parseArguments():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--annotations", required=True)
+    parser.add_argument("--annotation_type", choices=["head","body"], required=True)
+    parser.add_argument("--detections", required=True)
+    parser.add_argument("--detection_type", choices=["head","body"], required=True)
+    parser.add_argument("--outdir", required=True)
+    parser.add_argument("--model_name", required=True)
+    parser.add_argument("--dataset_name", required=True)
+
+    parser.add_argument("--iou_threshold", type=float, default=0.5)
+    parser.add_argument("--count", type=int, default=1)
+    parser.add_argument("--prefix", default=None)
+    parser.add_argument("--mask", action="store_true")
+    parser.add_argument("--delimiter", default="\t")
+
+    return parser.parse_args()
 
 
 
