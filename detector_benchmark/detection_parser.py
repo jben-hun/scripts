@@ -27,7 +27,6 @@ import numpy as np
 from pprint import pprint
 from sys import exit
 from os import path
-import os, argparse
 
 from . import lib
 
