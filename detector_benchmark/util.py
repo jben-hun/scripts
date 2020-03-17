@@ -93,7 +93,70 @@ def readList(listFile,count,detection=False):
 
     return testList
 
-def maxPair(scores, boxes, detectionType, labels, boxesGt, annotationType, threshold, minHeight=None, maxHeight=None, mask=False):
+
+def iou_cost(detection_box, detection_type, annotation_box, annotation_type):
+    iouVal = iou(detection_box, detection_type, annotation_box, annotation_type)
+    return -iouVal
+
+
+def get_height(target, target_type):
+    if target_type in ("head", "body"):
+        return target[3]-target[1] + 1
+    else:
+        raise NotImplemented
+
+
+def is_height_in_range(target, target_type, minHeight, maxHeight):
+    height = get_height(target, target_type)
+    lower_inside = minHeight is None or minHeight <= height
+    upper_inside = maxHeight is None or maxHeight >= height
+    return lower_inside and upper_inside
+
+
+def max_pair(detections, detection_scores, detection_type, annotations, annotation_labels, annotation_type,
+             score_threshold, minHeight=None, maxHeight=None, mask=False, cost_fun=iou_cost):
+    classified_detections = []
+
+    num_of_detections = len(detections)
+    num_of_annotations = len(annotations)
+
+    if not num_of_detections:
+        return classified_detections
+
+    cost = np.zeros(shape=(num_of_detections, num_of_annotations), dtype=np.float64)
+
+    for det_ind, det in enumerate(detections):
+        for ann_ind, ann in enumerate(annotations):
+            cost[det_ind][ann_ind] = cost_fun(det, detection_type, ann, annotation_type)
+
+    rows, cols = scipy.optimize.linear_sum_assignment(cost)
+
+    selectedIndicesI = rows.tolist()
+    selectedIndicesJ = cols.tolist()
+
+    for i in range(len(detection_scores)):
+        if i in selectedIndicesI:
+            j = selectedIndicesJ[selectedIndicesI.index(i)]
+            if mask and annotation_labels[j] == 0:
+                continue
+            if cost[i][j] < score_threshold:
+                if not is_height_in_range(annotations[j], annotation_type, minHeight, maxHeight):
+                    continue
+                truePositive = True
+            else:
+                truePositive = False
+        else:
+            if not is_height_in_range(detections[i], annotation_type, minHeight, maxHeight):
+                continue
+            truePositive = False
+
+        classified_detections.append([detection_scores[i], int(truePositive)])
+
+    return classified_detections
+
+
+def maxPair(scores, boxes, detectionType, labels, boxesGt, annotationType, threshold, minHeight=None, maxHeight=None,
+            mask=False):
     detections = []
 
     if len(scores) == 0:

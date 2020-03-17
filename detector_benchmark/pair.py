@@ -6,7 +6,7 @@ from sys import exit
 from os import path
 import os, argparse
 
-import util
+from . import util
 
 # SCALES = {
 #     "small":(8,176),
@@ -53,6 +53,71 @@ def main():
         prefix = args.prefix,
         mask = args.mask
     )
+
+
+def extract_detections(annotationList, annotationType, detectionList, detectionType, scaleRange, iouThreshold,
+                       mask=False):
+    gtCount = 0
+    detections = []
+    for index in range(len(annotationList)):
+        annotationLabels = annotationList[index]["labels"]
+        annotationBoxes = annotationList[index]["boxes"]
+        detectionScores = detectionList[index]["scores"]
+        detectionBoxes = detectionList[index]["boxes"]
+
+        assert annotationList[index]["image_path"] == detectionList[index]["image_path"], \
+            "{} != {}".format(annotationList[index]["image_path"], detectionList[index]["image_path"])
+
+        filteredAnnotationBoxes = util.heightFilter(annotationBoxes, minHeight=scaleRange[0], maxHeight=scaleRange[1],
+                                                    labels=annotationLabels if mask else None)
+        positiveCount = len(filteredAnnotationBoxes)
+        gtCount += positiveCount
+
+        detection = util.maxPair(detectionScores, detectionBoxes, detectionType, annotationLabels, annotationBoxes,
+                                 annotationType, iouThreshold, minHeight=scaleRange[0], maxHeight=scaleRange[1],
+                                 mask=mask)
+        detections.extend(detection)
+    return detections, gtCount
+
+
+def eval_scales(annotationList, annotationType, detectionList, detectionType, iouThreshold, testNamePrefix="",
+                mask=False, scales=None, extract_detections_fun=extract_detections):
+    if scales is None:
+        scales = SCALES
+
+    statistics = {}
+    for scaleName, scaleRange in scales.items():
+        detections, gtCount = extract_detections_fun(annotationList, annotationType, detectionList, detectionType,
+                                                     scaleRange, iouThreshold, mask)
+
+        if testNamePrefix:
+            testName = "{}.{}".format(testNamePrefix, scaleName)
+            print("\n{}\n{}\ndetections: {}".format(testName, len(testName) * '=', len(detections)))
+            print("gt:         {}".format(gtCount))
+            print()
+
+        detections.sort(
+            reverse=True,
+            key=lambda row: (row[0], row[1])
+        )
+
+        tp, fp = 0, 0
+        range_stats = []
+        for detection in detections:
+            if detection[1] == 1:
+                tp += 1
+            else:
+                fp += 1
+
+            range_stats.append((
+                tp / gtCount,
+                fp,
+                detection[0],
+                tp / (tp + fp),
+            ))
+        statistics[scaleName] = range_stats
+    return statistics
+
 
 def run(annotationListFile,annotationType,detectionListFile,detectionType,outputDir,modelName,datasetName,iouThreshold,count=1,prefix="",mask=False):
     annotationList = util.readList(annotationListFile,count)
