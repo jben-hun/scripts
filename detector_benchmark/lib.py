@@ -1,5 +1,5 @@
-import numpy as np
 import scipy.optimize
+import numpy as np
 from sys import exit
 from pprint import pprint
 
@@ -53,7 +53,7 @@ def iou(a,aType,b,bType):
 
     return intersectionArea/unionArea if unionArea !=0 else 0
 
-def readList(listFile,count,detection=False):
+def readList(listFile,count,detection=False,delimiter="\t"):
     testList = []
     with open(listFile, 'r') as f:
         lines = f.readlines()
@@ -63,8 +63,7 @@ def readList(listFile,count,detection=False):
         if line == '' or line[0] == '#':
             continue
 
-        line = line.replace(' ','')
-        lineSplit = line.split('\t')
+        lineSplit = line.split(delimiter)
 
         if detection:
             boxes_ = [ float(lineSplit[i]) for i in range(1,len(lineSplit)) ]
