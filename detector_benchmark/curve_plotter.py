@@ -15,7 +15,7 @@ The column structure of the .csv files should be:
 - recall, fp, confidence, precision
 in this order, where fp denotes the ammount of false positives.
 
-See detector_benchmark/pair.py
+See detection_parser.py
 """
 
 import os
@@ -298,7 +298,7 @@ def addScatterTrace(fig,x,y,legendgroup,name,hovertemplate,text,color,dash):
         mode="lines",
         hovertemplate=hovertemplate,
         line={"color":color,"width":1.5,"dash":dash},
-        #line_shape="linear",
+        line_shape="linear",
         text=text
     ))
 
