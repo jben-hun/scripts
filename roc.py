@@ -52,10 +52,6 @@ EPSILON = 1e-2
 def main():
     args = parseArguments()
 
-    precision  = args.precision
-    confidence = args.confidence
-    scales     = args.scales
-
     contents = os.listdir(args.indir)
     contents = [ path.join(args.indir,content) for content in contents ]
     files = [ content for content in contents if isCsvFile(content) ]
@@ -63,41 +59,42 @@ def main():
 
     assert files, "no tests to show"
 
-    fig = createFigure(
-        xaxis_title="recall" if precision else "fp",
-        yaxis_title="precision"+(" & confidence" if confidence else "") if precision else "recall"+(" & confidence" if confidence else ""),
-        xaxis={"range":[0-EPSILON,1+EPSILON] if precision else None,"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
-        yaxis={"range":[0-EPSILON,1+EPSILON],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1}
-    )
-
     colors = list(COLORS)
     if args.random_color:
         random.shuffle(colors)
     colorIterator = cycle(colors)
     netColors = {}
-    recallMaxes = {}
-    for i, file in enumerate(files):
-        df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=["recall","fp","confidence","precision"])
 
-        test = path.basename(path.splitext(file)[0])
-        specified,net,set,skip = parseName(test,scales)
-        if skip:
-            continue
+    if args.precision: # draw precision-recall curves
+        fig = createFigure(
+            xaxis_title="recall",
+            yaxis_title="precision"+(" & confidence" if args.confidence else ""),
+            xaxis={"range":[0-EPSILON,1+EPSILON],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
+            yaxis={"range":[0-EPSILON,1+EPSILON],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1}
+        )
 
-        if set in recallMaxes:
-            recallMaxes[set] = min( recallMaxes[set], df["recall"].max() )
-        else:
-            recallMaxes[set] = df["recall"].max()
+        recallMaxes = {}
+        for i, file in enumerate(files):
+            df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=["recall","fp","confidence","precision"])
 
-    for i, file in enumerate(files):
-        df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=["recall","fp","confidence","precision"])
+            test = path.basename(path.splitext(file)[0])
+            specified,net,set,skip = parseName(test,args.scales)
+            if skip:
+                continue
 
-        test = path.basename(path.splitext(file)[0])
-        specified,net,set,skip = parseName(test,scales)
-        if skip:
-            continue
+            if set in recallMaxes:
+                recallMaxes[set] = min( recallMaxes[set], df["recall"].max() )
+            else:
+                recallMaxes[set] = df["recall"].max()
 
-        if precision:
+        for i, file in enumerate(files):
+            df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=["recall","fp","confidence","precision"])
+
+            test = path.basename(path.splitext(file)[0])
+            specified,net,set,skip = parseName(test,args.scales)
+            if skip:
+                continue
+
             df = df[ df["recall"] <= recallMaxes[set] ]
 
             df = (
@@ -122,52 +119,43 @@ def main():
 
             areaUnderCurve = np.trapz(y,x)
 
-        else:
-            df = (
-                df.groupby(["fp"],as_index=False,sort=False)
-                .agg({"recall":np.max,"confidence":np.min,"precision":np.max})
-            )
+            if net not in netColors:
+                color = next(colorIterator)
+                netColors[net] = color
+            else:
+                color = netColors[net]
 
-        if net not in netColors:
-            color = next(colorIterator)
-            netColors[net] = color
-        else:
-            color = netColors[net]
-
-        addScatterTrace(
-            fig=fig,
-            x=df["recall"] if precision else df["fp"],
-            y=df["precision"] if precision else df["recall"],
-            legendgroup=set if specified else None,
-            name=(
-                  ("<b>auc/ap:</b> {:.3f}/{:.3f} ".format(areaUnderCurve,averagePrecision) if precision else "")
-                + ("<b>set:</b> {:} <b>net:</b> {:}".format(cutLonger(set),cutLonger(net)) if specified else "<b>{:}</b>".format(test))
-            ),
-            hovertemplate=(
-                  "<b>set:</b> {:}<br><b>net:</b> {:}<br>".format(set,net)
-                + ("<b>recall</b>" if precision else "<b>fp</b>")+" %{x}<br>"
-                + ("<b>precision</b>" if precision else "<b>recall</b>")
-                + ": %{y:.3f}<br><b>confidence</b> %{text:.3f}<extra></extra>"
-            ),
-            text=df["confidence"],
-            color=color,
-            dash=None
-        )
-
-        if confidence:
             addScatterTrace(
                 fig=fig,
-                x=df["recall"] if precision else df["fp"],
-                y=df["confidence"],
+                x=df["recall"],
+                y=df["precision"],
                 legendgroup=set if specified else None,
-                name="confidence",
-                hovertemplate=None,
-                text=None,
+                name=(
+                      "<b>auc/ap:</b> {:.3f}/{:.3f} ".format(areaUnderCurve,averagePrecision)
+                    + ("<b>set:</b> {:} <b>net:</b> {:}".format(cutLonger(set),cutLonger(net)) if specified else "<b>{:}</b>".format(test))
+                ),
+                hovertemplate=(
+                      "<b>set:</b> {:}<br><b>net:</b> {:}<br>".format(set,net)
+                    + "<b>recall</b> %{x}<br><b>precision</b>: %{y:.3f}<br><b>confidence</b> %{text:.3f}<extra></extra>"
+                ),
+                text=df["confidence"],
                 color=color,
-                dash="dash"
+                dash=None
             )
 
-    if precision:
+            if args.confidence:
+                addScatterTrace(
+                    fig=fig,
+                    x=df["recall"],
+                    y=df["confidence"],
+                    legendgroup=set if specified else None,
+                    name="confidence",
+                    hovertemplate=None,
+                    text=None,
+                    color=color,
+                    dash="dash"
+                )
+
         addScatterTrace(
             fig=fig,
             x=[0,1],
@@ -192,14 +180,71 @@ def main():
             dash="dashdot"
         )
 
+    else: # draw ROC curves
+        fig = createFigure(
+            xaxis_title="fp",
+            yaxis_title="recall"+(" & confidence" if args.confidence else ""),
+            xaxis={"range":None,"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
+            yaxis={"range":[0-EPSILON,1+EPSILON],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1}
+        )
+
+        for i, file in enumerate(files):
+            df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=["recall","fp","confidence","precision"])
+
+            test = path.basename(path.splitext(file)[0])
+            specified,net,set,skip = parseName(test,args.scales)
+            if skip:
+                continue
+
+            df = (
+                df.groupby(["fp"],as_index=False,sort=False)
+                .agg({"recall":np.max,"confidence":np.min,"precision":np.max})
+            )
+
+            if net not in netColors:
+                color = next(colorIterator)
+                netColors[net] = color
+            else:
+                color = netColors[net]
+
+            addScatterTrace(
+                fig=fig,
+                x=df["fp"],
+                y=df["recall"],
+                legendgroup=set if specified else None,
+                name=(
+                    ("<b>set:</b> {:} <b>net:</b> {:}".format(cutLonger(set),cutLonger(net)) if specified else "<b>{:}</b>".format(test))
+                ),
+                hovertemplate=(
+                      "<b>set:</b> {:}<br><b>net:</b> {:}<br>".format(set,net)
+                    + "<b>fp</b> %{x}<br><b>recall</b>: %{y:.3f}<br><b>confidence</b> %{text:.3f}<extra></extra>"
+                ),
+                text=df["confidence"],
+                color=color,
+                dash=None
+            )
+
+            if args.confidence:
+                addScatterTrace(
+                    fig=fig,
+                    x=df["fp"],
+                    y=df["confidence"],
+                    legendgroup=set if specified else None,
+                    name="confidence",
+                    hovertemplate=None,
+                    text=None,
+                    color=color,
+                    dash="dash"
+                )
+
     if args.outfile is None:
         outName = path.basename( os.getcwd() )
     else:
         outName = args.outfile
 
-    outName += ("_pr" if precision else "_roc")
-    outName += ("_scales" if scales else "")
-    outName += ("_confidence" if confidence else "")
+    outName += ("_pr" if args.precision else "_roc")
+    outName += ("_scales" if args.scales else "")
+    outName += ("_confidence" if args.confidence else "")
     outName += "_" + datetime.datetime.now().strftime("%y%m%d_%H%M%S_%f")
     outName += ".html"
 
