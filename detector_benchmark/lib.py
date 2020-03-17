@@ -101,6 +101,10 @@ def iou_cost(detection_box, detection_type, annotation_box, annotation_type):
 def get_height(target, target_type):
     if target_type in ("head", "body"):
         return target[3]-target[1] + 1
+    elif target_type == "skeleton":
+        points = np.array([(pt["x"], pt["y"]) for pt in target])
+        bb = np.hstack((points.min(axis=0), points.max(axis=0)))
+        return bb[3]-bb[1]+1
     else:
         raise NotImplemented
 
@@ -145,7 +149,7 @@ def max_pair(detections, detection_scores, detection_type, annotations, annotati
             else:
                 truePositive = False
         else:
-            if not is_height_in_range(detections[i], annotation_type, minHeight, maxHeight):
+            if not is_height_in_range(detections[i], detection_type, minHeight, maxHeight):
                 continue
             truePositive = False
 
