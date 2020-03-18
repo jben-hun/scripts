@@ -69,13 +69,13 @@ def main():
         fig = createFigure(
             xaxis_title="recall",
             yaxis_title="precision"+(" & confidence" if args.confidence else ""),
-            xaxis={"range":[0-EPSILON,1+EPSILON],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
-            yaxis={"range":[0-EPSILON,1+EPSILON],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1}
+            xaxis={"range":(0-EPSILON,1+EPSILON),"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
+            yaxis={"range":(0-EPSILON,1+EPSILON),"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1}
         )
 
         recallMaxes = {}
         for i, file in enumerate(files):
-            df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=["recall","fp","confidence","precision"])
+            df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=("recall","fp","confidence","precision"))
 
             test = path.basename(path.splitext(file)[0])
             specified,net,set,skip = parseName(test,args.scales)
@@ -88,7 +88,7 @@ def main():
                 recallMaxes[set] = df["recall"].max()
 
         for i, file in enumerate(files):
-            df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=["recall","fp","confidence","precision"])
+            df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=("recall","fp","confidence","precision"))
 
             test = path.basename(path.splitext(file)[0])
             specified,net,set,skip = parseName(test,args.scales)
@@ -96,9 +96,9 @@ def main():
                 continue
 
             df = (
-                df.groupby(["recall"],as_index=False,sort=False)
+                df.groupby(("recall"),as_index=False,sort=False)
                 .agg({"fp":np.min,"confidence":np.max,"precision":np.max})
-                .sort_values(by=["recall"],ascending=False)
+                .sort_values(by=("recall"),ascending=False)
             )
 
             df["precision"] = df["precision"].cummax()
@@ -132,8 +132,8 @@ def main():
                 y=df["precision"],
                 legendgroup=set if specified else None,
                 name=(
-                      "<b>auc/ap:</b> {:.3f}/{:.3f} ".format(areaUnderCurve,averagePrecision)
-                    + ("<b>set:</b> {:} <b>net:</b> {:}".format(cutLonger(set),cutLonger(net)) if specified else "<b>{:}</b>".format(test))
+                      ("<b>set:</b> {:}<br><b>net:</b> {:}".format(cutLonger(set),cutLonger(net)) if specified else "<b>{:}</b>".format(cutLonger(test)))
+                    + "<br><b>auc/ap:</b> {:.3f}/{:.3f}".format(areaUnderCurve,averagePrecision)
                 ),
                 hovertemplate=(
                       "<b>set:</b> {:}<br><b>net:</b> {:}<br>".format(set,net)
@@ -159,8 +159,8 @@ def main():
 
         addScatterTrace(
             fig=fig,
-            x=[0,1],
-            y=[1,0],
+            x=(0,1),
+            y=(1,0),
             legendgroup=None,
             name="guide1",
             hovertemplate=None,
@@ -171,8 +171,8 @@ def main():
 
         addScatterTrace(
             fig=fig,
-            x=[0,1],
-            y=[0,1],
+            x=(0,1),
+            y=(0,1),
             legendgroup=None,
             name="guide2",
             hovertemplate=None,
@@ -186,11 +186,11 @@ def main():
             xaxis_title="fp",
             yaxis_title="recall"+(" & confidence" if args.confidence else ""),
             xaxis={"range":None,"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
-            yaxis={"range":[0-EPSILON,1+EPSILON],"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1}
+            yaxis={"range":(0-EPSILON,1+EPSILON),"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1}
         )
 
         for i, file in enumerate(files):
-            df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=["recall","fp","confidence","precision"])
+            df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=("recall","fp","confidence","precision"))
 
             test = path.basename(path.splitext(file)[0])
             specified,net,set,skip = parseName(test,args.scales)
@@ -214,7 +214,7 @@ def main():
                 y=df["recall"],
                 legendgroup=set if specified else None,
                 name=(
-                    ("<b>set:</b> {:} <b>net:</b> {:}".format(cutLonger(set),cutLonger(net)) if specified else "<b>{:}</b>".format(test))
+                    ("<b>set:</b> {:}<br><b>net:</b> {:}".format(cutLonger(set),cutLonger(net)) if specified else "<b>{:}</b>".format(cutLonger(test)))
                 ),
                 hovertemplate=(
                       "<b>set:</b> {:}<br><b>net:</b> {:}<br>".format(set,net)
@@ -287,7 +287,7 @@ def createFigure(xaxis_title,yaxis_title,xaxis,yaxis):
         xaxis=xaxis,
         yaxis=yaxis,
         legend={"tracegroupgap":15},
-        margin={"r":500}
+        margin={"r":500,"autoexpand":False}
     ))
 
 def addScatterTrace(fig,x,y,legendgroup,name,hovertemplate,text,color,dash):
@@ -322,7 +322,7 @@ def parseArguments():
 def htmlWrap(s,width=15):
     return "<br>".join(textwrap.wrap(s,width=width))
 
-def cutLonger(s,n=15):
+def cutLonger(s,n=50):
     return s if len(s) <= n else s[:n//2]+"..."+s[-n//2:]
 
 
