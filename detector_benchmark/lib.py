@@ -4,9 +4,9 @@ from sys import exit
 from pprint import pprint
 
 objectLabelDict = {
-    "filtered": -1.0,
-    "masked": 0.0,
-    "object": 1.0
+    "filtered": -1,
+    "masked": 0,
+    "object": 1
 }
 ignoredObjectLabels = (objectLabelDict["filtered"],objectLabelDict["masked"])
 
@@ -138,7 +138,7 @@ def annotationFilter(boxes,labels,minHeight,maxHeight,maskOutliers=False):
     boolMask = (npLabels == objectLabelDict["masked"])
 
     if maskOutliers:
-        boolMask = np.logical_or(boolMask, npBoxes[:,1] < 0)
+        boolMask = np.logical_or(boolMask, npBoxes[:,1] <= 0)
 
     if minHeight is not None:
         boolMask = np.logical_or(boolMask, npBoxes[:,3]-npBoxes[:,1]+1 < minHeight)

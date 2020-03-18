@@ -78,7 +78,7 @@ def run(annotationListFile,annotationType,detectionListFile,detectionType,outDir
         gtCount = 0
         detections = []
         for index in range(lenList):
-            annotationLabels = annotationList[index]["labels_or_scores"]
+            annotationLabels = list(map(int,annotationList[index]["labels_or_scores"]))
             annotationBoxes = annotationList[index]["boxes"]
             detectionScores = detectionList[index]["labels_or_scores"]
             detectionBoxes = detectionList[index]["boxes"]
