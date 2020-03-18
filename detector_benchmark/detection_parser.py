@@ -64,7 +64,7 @@ def main():
 
 def run(annotationListFile,annotationType,detectionListFile,detectionType,outDir,modelName,datasetName,iouThreshold=0.5,count=1,prefix=None,maskOutliers=False,delimiter="\t"):
     annotationList = lib.readList(annotationListFile,count,delimiter=delimiter)
-    detectionList = lib.readList(detectionListFile,count,detection=True,delimiter=delimiter)
+    detectionList = lib.readList(detectionListFile,count,delimiter=delimiter)
     lenList = len(annotationList)
     assert lenList==len(detectionList), "annotation: {}, detection: {}".format( lenList, len(detectionList) )
 
@@ -78,29 +78,29 @@ def run(annotationListFile,annotationType,detectionListFile,detectionType,outDir
         gtCount = 0
         detections = []
         for index in range(lenList):
-            annotationLabels = annotationList[index]["labels"]
+            annotationLabels = annotationList[index]["labels_or_scores"]
             annotationBoxes = annotationList[index]["boxes"]
-            detectionScores = detectionList[index]["scores"]
+            detectionScores = detectionList[index]["labels_or_scores"]
             detectionBoxes = detectionList[index]["boxes"]
 
-            msg = annotationList[index]["image_path"]+" != "+detectionList[index]["image_path"]
-            assert annotationList[index]["image_path"]==detectionList[index]["image_path"], msg
+            msg = str(annotationList[index]["image_paths"])+" != "+str(detectionList[index]["image_paths"])
+            assert annotationList[index]["image_paths"]==detectionList[index]["image_paths"], msg
 
-            filteredAnnotationBoxes,filteredAnnotationLabels = lib.annotationFilter(
+            annotationLabels = lib.annotationFilter(
                 boxes=annotationBoxes,
                 labels=annotationLabels,
                 minHeight=scaleRange[0],
                 maxHeight=scaleRange[1],
                 maskOutliers=maskOutliers
             )
-            positiveCount = len( filteredAnnotationBoxes )
+            positiveCount = len([label for label in annotationLabels if label not in lib.ignoredObjectLabels ])
             gtCount += positiveCount
 
             detection = lib.maxPair(
                 scores=detectionScores,
                 boxes=detectionBoxes,
                 detectionType=detectionType,
-                labels=filteredAnnotationLabels,
+                labels=annotationLabels,
                 boxesGt=annotationBoxes,
                 annotationType=annotationType,
                 threshold=iouThreshold,

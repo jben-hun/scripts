@@ -17,9 +17,9 @@ cd results
 $REPO/detector_benchmark/curve_plotter.py -p
 ```
 
-+ Select the head/body combination between annotations & detections with _**--annotation_type**_ / _**--detection_type**_, matching alike objects is done using **IoU**, matching heads and bodies is done with **Interception over Head**.
++ Select the head/body combination between annotations & detections with _**--annotation_type**_ / _**--detection_type**_, matching alike objects is done using **IoU**, matching heads and bodies is done with **Intersection over Head**.
 + Format of **annotations**.csv lines: _**imagefile x1 y1 x2 y2 1 ...**_
-  + Bonus: Using zeroes insted of ones masks an object, ignoring it during the evaluation.
+  + Bonus: Using zeroes instead of ones masks an object, ignoring it during the evaluation.
 + Format of **detections**.csv lines: _**imagefile x1 y1 x2 y2 confidence ...**_
   + The **confidence** shall fall into the **[0.0,1.0]** range.
 + **(x1,y1)** is the left corner of object bounding box.

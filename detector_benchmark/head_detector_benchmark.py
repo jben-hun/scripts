@@ -13,12 +13,9 @@ import subprocess
 from os import path
 
 import detection_parser
-import lib
 
 def main():
     args = parseArguments()
-
-    annotationList = lib.readList(args.annotations,args.count)
 
     clonedEnv = os.environ.copy()
     clonedEnv["GLOG_minloglevel"] = "2"
