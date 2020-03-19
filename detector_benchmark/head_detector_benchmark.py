@@ -13,12 +13,9 @@ import subprocess
 from os import path
 
 import detection_parser
-import lib
 
 def main():
     args = parseArguments()
-
-    annotationList = lib.readList(args.annotations,args.count)
 
     clonedEnv = os.environ.copy()
     clonedEnv["GLOG_minloglevel"] = "2"
@@ -48,7 +45,7 @@ def main():
         iouThreshold=args.iou_threshold,
         count=args.count,
         prefix=args.prefix,
-        mask=args.mask,
+        maskOutliers=args.mask_outliers,
         delimiter=args.delimiter
     )
 
@@ -66,7 +63,7 @@ def parseArguments():
     parser.add_argument("--confidence_threshold", default=0.01, type=float, help="for detection, should be as low as feasible")
     parser.add_argument("--iou_threshold", default=0.5, type=float, help="for matching detections to annotations")
     parser.add_argument("--count", default=1, type=int, help="input image count")
-    parser.add_argument("--mask", action="store_true", help="exclude marked objects from the statistics")
+    parser.add_argument("--mask_outliers", action="store_true", help="exclude upper outlying objects")
     parser.add_argument("--dldemo_exe", default="/home/bjenei/dldemo")
     parser.add_argument("--dldemo_cmd", default="rpndet")
     parser.add_argument("--min_height", default=1, type=int)
