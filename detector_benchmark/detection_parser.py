@@ -48,42 +48,55 @@ def main():
     args = parseArguments()
 
     run(
-        annotationListFile = args.annotations,
-        annotationType = args.annotation_type,
-        detectionListFile = args.detections,
-        detectionType = args.detection_type,
+        annotationListFile=args.annotations,
+        annotationType=args.annotation_type,
+        detectionListFile=args.detections,
+        detectionType=args.detection_type,
         outDir=args.outdir,
-        modelName = args.model_name,
-        datasetName = args.dataset_name,
-        iouThreshold = args.iou_threshold,
-        count = args.count,
-        prefix = args.prefix,
-        mask=args.mask,
+        modelName=args.model_name,
+        datasetName=args.dataset_name,
+        iouThreshold=args.iou_threshold,
+        count=args.count,
+        prefix=args.prefix,
+        maskOutliers=args.mask_outliers,
         delimiter=args.delimiter
     )
 
 
 def extract_detections(annotationList, annotationType, detectionList, detectionType, scaleRange, iouThreshold,
-                       mask=False):
+                       maskOutliers=False):
     gtCount = 0
     detections = []
     for index in range(len(annotationList)):
-        annotationLabels = annotationList[index]["labels"]
+        annotationLabels = annotationList[index]["labels_or_scores"]
         annotationBoxes = annotationList[index]["boxes"]
-        detectionScores = detectionList[index]["scores"]
+        detectionScores = detectionList[index]["labels_or_scores"]
         detectionBoxes = detectionList[index]["boxes"]
 
-        assert annotationList[index]["image_path"] == detectionList[index]["image_path"], \
-            "{} != {}".format(annotationList[index]["image_path"], detectionList[index]["image_path"])
+        assert annotationList[index]["image_paths"] == detectionList[index]["image_paths"], \
+            "{} != {}".format(annotationList[index]["image_paths"], detectionList[index]["image_paths"])
 
-        filteredAnnotationBoxes = lib.heightFilter(annotationBoxes, minHeight=scaleRange[0], maxHeight=scaleRange[1],
-                                                    labels=annotationLabels if mask else None)
-        positiveCount = len(filteredAnnotationBoxes)
+        annotationLabels = lib.annotationFilter(
+            boxes=annotationBoxes,
+            labels=annotationLabels,
+            minHeight=scaleRange[0],
+            maxHeight=scaleRange[1],
+            maskOutliers=maskOutliers
+        )
+        positiveCount = len([label for label in annotationLabels if label not in lib.ignoredObjectLabels])
         gtCount += positiveCount
 
-        detection = lib.maxPair(detectionScores, detectionBoxes, detectionType, annotationLabels, annotationBoxes,
-                                 annotationType, iouThreshold, minHeight=scaleRange[0], maxHeight=scaleRange[1],
-                                 mask=mask)
+        detection = lib.maxPair(
+            scores=detectionScores,
+            boxes=detectionBoxes,
+            detectionType=detectionType,
+            labels=annotationLabels,
+            boxesGt=annotationBoxes,
+            annotationType=annotationType,
+            threshold=iouThreshold,
+            minHeight=scaleRange[0],
+            maxHeight=scaleRange[1],
+        )
         detections.extend(detection)
     return detections, gtCount
 
@@ -127,9 +140,9 @@ def eval_scales(annotationList, annotationType, detectionList, detectionType, io
     return statistics
 
 
-def run(annotationListFile,annotationType,detectionListFile,detectionType,outDir,modelName,datasetName,iouThreshold=0.5,count=1,prefix=None,mask=False,delimiter="\t"):
+def run(annotationListFile,annotationType,detectionListFile,detectionType,outDir,modelName,datasetName,iouThreshold=0.5,count=1,prefix=None,maskOutliers=False,delimiter="\t"):
     annotationList = lib.readList(annotationListFile,count,delimiter=delimiter)
-    detectionList = lib.readList(detectionListFile,count,detection=True,delimiter=delimiter)
+    detectionList = lib.readList(detectionListFile,count,delimiter=delimiter)
     lenList = len(annotationList)
     assert lenList==len(detectionList), "annotation: {}, detection: {}".format( lenList, len(detectionList) )
 
@@ -143,18 +156,35 @@ def run(annotationListFile,annotationType,detectionListFile,detectionType,outDir
         gtCount = 0
         detections = []
         for index in range(lenList):
-            annotationLabels = annotationList[index]["labels"]
+            annotationLabels = annotationList[index]["labels_or_scores"]
             annotationBoxes = annotationList[index]["boxes"]
-            detectionScores = detectionList[index]["scores"]
+            detectionScores = detectionList[index]["labels_or_scores"]
             detectionBoxes = detectionList[index]["boxes"]
 
-            assert annotationList[index]["image_path"]==detectionList[index]["image_path"], annotationList[index]["image_path"]+" != "+detectionList[index]["image_path"]
+            msg = str(annotationList[index]["image_paths"])+" != "+str(detectionList[index]["image_paths"])
+            assert annotationList[index]["image_paths"]==detectionList[index]["image_paths"], msg
 
-            filteredAnnotationBoxes = lib.heightFilter(annotationBoxes,minHeight=scaleRange[0],maxHeight=scaleRange[1],labels=annotationLabels if mask else None)
-            positiveCount = len( filteredAnnotationBoxes )
+            annotationLabels = lib.annotationFilter(
+                boxes=annotationBoxes,
+                labels=annotationLabels,
+                minHeight=scaleRange[0],
+                maxHeight=scaleRange[1],
+                maskOutliers=maskOutliers
+            )
+            positiveCount = len([label for label in annotationLabels if label not in lib.ignoredObjectLabels ])
             gtCount += positiveCount
 
-            detection = lib.maxPair(detectionScores,detectionBoxes,detectionType,annotationLabels,annotationBoxes,annotationType,iouThreshold,minHeight=scaleRange[0],maxHeight=scaleRange[1],mask=mask)
+            detection = lib.maxPair(
+                scores=detectionScores,
+                boxes=detectionBoxes,
+                detectionType=detectionType,
+                labels=annotationLabels,
+                boxesGt=annotationBoxes,
+                annotationType=annotationType,
+                threshold=iouThreshold,
+                minHeight=scaleRange[0],
+                maxHeight=scaleRange[1]
+            )
             detections.extend(detection)
 
         print( "\n{}\n{}\ndetections: {}".format(testName,len(testName)*'=',len(detections)) )
@@ -191,18 +221,18 @@ def run(annotationListFile,annotationType,detectionListFile,detectionType,outDir
 def parseArguments():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--annotations", required=True)
+    parser.add_argument("--annotations", required=True, help="list file with test examples")
     parser.add_argument("--annotation_type", choices=["head","body"], required=True)
-    parser.add_argument("--detections", required=True)
+    parser.add_argument("--detections", required=True, help="list file containing detections with confidences")
     parser.add_argument("--detection_type", choices=["head","body"], required=True)
     parser.add_argument("--outdir", required=True)
     parser.add_argument("--model_name", required=True)
     parser.add_argument("--dataset_name", required=True)
 
-    parser.add_argument("--iou_threshold", type=float, default=0.5)
-    parser.add_argument("--count", type=int, default=1)
+    parser.add_argument("--iou_threshold", type=float, default=0.5, help="for matching detections to annotations")
+    parser.add_argument("--count", type=int, default=1, help="input image count")
     parser.add_argument("--prefix", default=None)
-    parser.add_argument("--mask", action="store_true")
+    parser.add_argument("--mask_outliers", action="store_true", help="exclude upper outlying objects")
     parser.add_argument("--delimiter", default="\t")
 
     return parser.parse_args()

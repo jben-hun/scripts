@@ -3,6 +3,13 @@ import numpy as np
 from sys import exit
 from pprint import pprint
 
+objectLabelDict = {
+    "filtered": -1.0,
+    "masked": 0.0,
+    "object": 1.0
+}
+ignoredObjectLabels = (objectLabelDict["filtered"],objectLabelDict["masked"])
+
 def iou(a,aType,b,bType):
     def transformBody(body,w,h):
         d = max(0,h-w)
@@ -53,7 +60,7 @@ def iou(a,aType,b,bType):
 
     return intersectionArea/unionArea if unionArea !=0 else 0
 
-def readList(listFile,count,detection=False,delimiter="\t"):
+def readList(listFile,count,delimiter="\t"):
     testList = []
     with open(listFile, 'r') as f:
         lines = f.readlines()
@@ -65,33 +72,19 @@ def readList(listFile,count,detection=False,delimiter="\t"):
 
         lineSplit = line.split(delimiter)
 
-        if detection:
-            boxes_ = [ float(lineSplit[i]) for i in range(1,len(lineSplit)) ]
-            boxes_ = [ int(v) if (i+1)%5!=0 else v for i,v in enumerate(boxes_) ]
-            boxes = np.reshape( boxes_, (-1,5) )
-            scores = boxes[:,4].tolist()
-            boxes = boxes[:,:4].tolist()
-            testList.append({
-                "image_path":lineSplit[0],
-                "boxes":boxes,
-                "scores":scores
-            })
-        else:
-            boxes_ = [ float(lineSplit[i]) for i in range(count,len(lineSplit)) ]
-            boxes_ = [ int(v) if (i+1)%5!=0 else v for i,v in enumerate(boxes_) ]
-            boxes = np.reshape( boxes_, (-1,5) )
-            labels = boxes[:,4].tolist()
-            boxes = boxes[:,:4].tolist()
-            testList.append({
-                "image_path":lineSplit[count-1],
-                "boxes":boxes,
-                "labels":labels
-            })
+        boxes_ = [ float(lineSplit[i]) for i in range(count,len(lineSplit)) ]
+        boxes = np.reshape( boxes_, (-1,5) )
+        labelsOrScores = boxes[:,4].tolist()
+        boxes = boxes[:,:4].tolist()
+        testList.append({
+            "image_paths":lineSplit[:count],
+            "boxes":boxes,
+            "labels_or_scores":labelsOrScores
+        })
 
-    testList.sort(key=lambda x: x["image_path"])
+    testList.sort(key=lambda x: x["image_paths"])
 
     return testList
-
 
 def iou_cost(detection_box, detection_type, annotation_box, annotation_type):
     iouVal = iou(detection_box, detection_type, annotation_box, annotation_type)
@@ -117,7 +110,7 @@ def is_height_in_range(target, target_type, minHeight, maxHeight):
 
 
 def max_pair(detections, detection_scores, detection_type, annotations, annotation_labels, annotation_type,
-             score_threshold, minHeight=None, maxHeight=None, mask=False, cost_fun=iou_cost):
+             cost_threshold, minHeight=None, maxHeight=None, cost_fun=iou_cost):
     classified_detections = []
 
     num_of_detections = len(detections)
@@ -140,9 +133,9 @@ def max_pair(detections, detection_scores, detection_type, annotations, annotati
     for i in range(len(detection_scores)):
         if i in selectedIndicesI:
             j = selectedIndicesJ[selectedIndicesI.index(i)]
-            if mask and annotation_labels[j] == 0:
+            if annotation_labels[j] in ignoredObjectLabels:
                 continue
-            if cost[i][j] < score_threshold:
+            if cost[i][j] < cost_threshold:
                 if not is_height_in_range(annotations[j], annotation_type, minHeight, maxHeight):
                     continue
                 truePositive = True
@@ -158,8 +151,7 @@ def max_pair(detections, detection_scores, detection_type, annotations, annotati
     return classified_detections
 
 
-def maxPair(scores, boxes, detectionType, labels, boxesGt, annotationType, threshold, minHeight=None, maxHeight=None,
-            mask=False):
+def maxPair(scores,boxes,detectionType,labels,boxesGt,annotationType,threshold,minHeight,maxHeight):
     detections = []
 
     if len(scores) == 0:
@@ -180,16 +172,9 @@ def maxPair(scores, boxes, detectionType, labels, boxesGt, annotationType, thres
     for i in range(len(scores)):
         if i in selectedIndicesI:
             j = selectedIndicesI.index(i)
-            if mask and labels[selectedIndicesJ[j]] == 0:
+            if labels[selectedIndicesJ[j]] in ignoredObjectLabels:
                 continue
             if 1 - cost[i][selectedIndicesJ[j]] > threshold:
-                if minHeight is not None or maxHeight is not None:
-                    selectedIndex = selectedIndicesJ[j]
-                    selectedGt = boxesGt[selectedIndex]
-                    selectedHeight = selectedGt[3] - selectedGt[1] + 1
-                    if (minHeight is not None and selectedHeight < minHeight) or \
-                        (maxHeight is not None and selectedHeight > maxHeight):
-                        continue
                 truePositive = True
             else:
                 truePositive = False
@@ -211,15 +196,21 @@ def maxPair(scores, boxes, detectionType, labels, boxesGt, annotationType, thres
 
     return detections
 
-def heightFilter(l_,minHeight,maxHeight,labels=None):
-    l = l_[:]
+def annotationFilter(boxes,labels,minHeight,maxHeight,maskOutliers=False):
+    npBoxes = np.array(boxes)
+    npLabels = np.array(labels)
 
-    if labels is not None:
-        l = [ e for i,e in enumerate(l) if labels[i] != 0 ]
+    boolMask = (npLabels == objectLabelDict["masked"])
+
+    if maskOutliers:
+        boolMask = np.logical_or(boolMask, npBoxes[:,1] < 0)
 
     if minHeight is not None:
-        l = [ e for e in l if e[3]-e[1]+1 >= minHeight ]
-    if maxHeight is not None:
-        l = [ e for e in l if e[3]-e[1]+1 <= maxHeight ]
+        boolMask = np.logical_or(boolMask, npBoxes[:,3]-npBoxes[:,1]+1 < minHeight)
 
-    return l
+    if maxHeight is not None:
+        boolMask = np.logical_or(boolMask, npBoxes[:,3]-npBoxes[:,1]+1 > maxHeight)
+
+    npLabels[boolMask] = objectLabelDict["filtered"]
+
+    return npLabels.tolist()
