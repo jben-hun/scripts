@@ -132,6 +132,9 @@ def maxPair(scores,boxes,detectionType,labels,boxesGt,annotationType,threshold,m
     return detections
 
 def annotationFilter(boxes,labels,minHeight,maxHeight,maskOutliers=False):
+    if not labels:
+        return []
+
     npBoxes = np.array(boxes)
     npLabels = np.array(labels)
 
