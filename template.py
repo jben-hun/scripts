@@ -1,7 +1,11 @@
 #! /usr/bin/python3
 
-import argparse, json, os, shutil
-from os import sys,path
+import argparse
+import json
+import os
+import shutil
+from os import sys
+from os import pathpath
 from pprint import pprint
 from sys import exit
 

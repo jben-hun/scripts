@@ -34,19 +34,6 @@ from itertools import cycle
 from scipy import interpolate
 from pprint import pprint
 
-COLORS = (
-    '#1f77b4', # muted blue
-    '#ff7f0e', # safety orange
-    '#2ca02c', # cooked asparagus green
-    '#d62728', # brick red
-    '#9467bd', # muted purple
-    '#8c564b', # chestnut brown
-    '#e377c2', # raspberry yogurt pink
-    '#7f7f7f', # middle gray
-    '#bcbd22', # curry yellow-green
-    '#17becf'  # blue-teal
-)
-
 EPSILON = 1e-2
 
 def main():
@@ -55,15 +42,13 @@ def main():
     contents = os.listdir(args.indir)
     contents = [ path.join(args.indir,content) for content in contents ]
     files = [ content for content in contents if isCsvFile(content) ]
-    files.sort()
+    def fileOrderComparison(file):
+        file = path.basename(path.splitext(file)[0])
+        specified,net,set,skip = parseName(file,False)
+        return (set,net) if specified else (file,"")
+    files.sort(key=fileOrderComparison)
 
     assert files, "no tests to show"
-
-    colors = list(COLORS)
-    if args.random_color:
-        random.shuffle(colors)
-    colorIterator = cycle(colors)
-    netColors = {}
 
     if args.precision: # draw precision-recall curves
         fig = createFigure(
@@ -120,28 +105,19 @@ def main():
 
             areaUnderCurve = np.trapz(y,x)
 
-            if net not in netColors:
-                color = next(colorIterator)
-                netColors[net] = color
-            else:
-                color = netColors[net]
-
             addScatterTrace(
                 fig=fig,
                 x=df["recall"],
                 y=df["precision"],
-                legendgroup=set if specified else None,
                 name=(
-                      ("<b>set:</b> {:}<br><b>net:</b> {:}".format(cutLonger(set),cutLonger(net)) if specified else "<b>{:}</b>".format(cutLonger(test)))
+                      ("<b>set: {:}<br>net:</b> {:}".format(cutLonger(set),cutLonger(net)) if specified else "<b>{:}</b>".format(cutLonger(test)))
                     + "<br><b>auc/ap:</b> {:.3f}/{:.3f}".format(areaUnderCurve,averagePrecision)
                 ),
                 hovertemplate=(
-                      "<b>set:</b> {:}<br><b>net:</b> {:}<br>".format(set,net)
+                      "<b>set: {:}<br>net:</b> {:}<br>".format(set,net)
                     + "<b>recall</b> %{x}<br><b>precision</b>: %{y:.3f}<br><b>confidence</b> %{text:.3f}<extra></extra>"
                 ),
-                text=df["confidence"],
-                color=color,
-                dash=None
+                text=df["confidence"]
             )
 
             if args.confidence:
@@ -149,11 +125,7 @@ def main():
                     fig=fig,
                     x=df["recall"],
                     y=df["confidence"],
-                    legendgroup=set if specified else None,
                     name="confidence",
-                    hovertemplate=None,
-                    text=None,
-                    color=color,
                     dash="dash"
                 )
 
@@ -161,10 +133,7 @@ def main():
             fig=fig,
             x=(0,1),
             y=(1,0),
-            legendgroup=None,
             name="guide1",
-            hovertemplate=None,
-            text=None,
             color="black",
             dash="dashdot"
         )
@@ -173,10 +142,7 @@ def main():
             fig=fig,
             x=(0,1),
             y=(0,1),
-            legendgroup=None,
             name="guide2",
-            hovertemplate=None,
-            text=None,
             color="black",
             dash="dashdot"
         )
@@ -202,27 +168,18 @@ def main():
                 .agg({"recall":np.max,"confidence":np.min,"precision":np.max})
             )
 
-            if net not in netColors:
-                color = next(colorIterator)
-                netColors[net] = color
-            else:
-                color = netColors[net]
-
             addScatterTrace(
                 fig=fig,
                 x=df["fp"],
                 y=df["recall"],
-                legendgroup=set if specified else None,
                 name=(
-                    ("<b>set:</b> {:}<br><b>net:</b> {:}".format(cutLonger(set),cutLonger(net)) if specified else "<b>{:}</b>".format(cutLonger(test)))
+                    ("<b>set: {:}<br>net:</b> {:}".format(cutLonger(set),cutLonger(net)) if specified else "<b>{:}</b>".format(cutLonger(test)))
                 ),
                 hovertemplate=(
-                      "<b>set:</b> {:}<br><b>net:</b> {:}<br>".format(set,net)
+                      "<b>set: {:}<br>net:</b> {:}<br>".format(set,net)
                     + "<b>fp</b> %{x}<br><b>recall</b>: %{y:.3f}<br><b>confidence</b> %{text:.3f}<extra></extra>"
                 ),
-                text=df["confidence"],
-                color=color,
-                dash=None
+                text=df["confidence"]
             )
 
             if args.confidence:
@@ -230,11 +187,7 @@ def main():
                     fig=fig,
                     x=df["fp"],
                     y=df["confidence"],
-                    legendgroup=set if specified else None,
                     name="confidence",
-                    hovertemplate=None,
-                    text=None,
-                    color=color,
                     dash="dash"
                 )
 
@@ -273,7 +226,7 @@ def parseName(test,scales):
         net = test
         set = test
 
-    return specified, net, set, skip
+    return specified,net,set,skip
 
 def isCsvFile(file):
     return path.isfile(file) and path.splitext(file)[1] == ".csv"
@@ -290,11 +243,10 @@ def createFigure(xaxis_title,yaxis_title,xaxis,yaxis):
         margin={"r":500,"autoexpand":False}
     ))
 
-def addScatterTrace(fig,x,y,legendgroup,name,hovertemplate,text,color,dash):
+def addScatterTrace(fig,x,y,name,hovertemplate=None,text=None,color=None,dash=None):
     fig.add_trace(go.Scatter(
         x=x,
         y=y,
-        legendgroup=legendgroup,
         name=name,
         mode="lines",
         hovertemplate=hovertemplate,
