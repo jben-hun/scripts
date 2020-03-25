@@ -5,7 +5,7 @@ import json
 import os
 import shutil
 from os import sys
-from os import pathpath
+from os import path
 from pprint import pprint
 from sys import exit
 
