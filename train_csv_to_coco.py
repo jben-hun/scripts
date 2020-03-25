@@ -43,8 +43,8 @@ def main():
             try:
                 imageId = images.index(image)
             except ValueError:
-                # h,w,c = cv.imread(path.join(path.basename(args.csv_file.replace("_coco","").replace(".csv","")),image), cv.IMREAD_UNCHANGED).shape
-                h,w,c = cv.imread(image, cv.IMREAD_UNCHANGED).shape
+                imageShape = cv.imread(image, cv.IMREAD_UNCHANGED).shape
+                h,w = imageShape[0],imageShape[1]
                 images.append(image)
                 imageId = len(images)-1
                 cocoData["images"].append({
