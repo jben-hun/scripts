@@ -7,10 +7,12 @@ import numpy as np
 import plotly as py
 import plotly.graph_objects as go
 from os import path
+from pprint import pprint
 
 EPSILON = 1e-2
 NAME_CHAR_LIMIT = 70
 LEGEND_WIDTH = 500
+PALETTE = py.colors.qualitative.Plotly
 
 def main():
     args = parseArguments()
@@ -19,15 +21,22 @@ def main():
 
     assert files, "no valid tests available to show"
 
+    colors = []
+    for color in PALETTE:
+        colors += ([color,color] if args.score else [color])
     fig = createFigure(
         xaxis_title="recall",
         yaxis_title="precision"+(" & score" if args.score else ""),
         xaxis={"range":(0-EPSILON,1+EPSILON),"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
-        yaxis={"range":(0-EPSILON,1+EPSILON),"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1}
+        yaxis={"range":(0-EPSILON,1+EPSILON),"gridcolor":"lightGray","gridwidth":1,"zerolinecolor":"black","zerolinewidth":1},
+        colorway=colors
     )
 
     for file in files:
         df = pd.read_csv(file,sep=unescape(args.delimiter),header=None,names=("score","precision","recall"))
+
+        # pprint(dir(py.colors.qualitative))
+        # exit()
 
         name = path.basename(path.splitext(file)[0])
         addScatterTrace(
@@ -36,7 +45,8 @@ def main():
             y=df["precision"],
             name=name,
             hovertemplate="<b>"+name+"</b><br><b>recall</b>: %{x}<br><b>precision</b>: %{y}<br><b>score</b>: %{text}<extra></extra>",
-            text=df["score"]
+            text=df["score"],
+            legendgroup=name if args.score else None
         )
 
         if args.score:
@@ -45,7 +55,8 @@ def main():
                 x=df["recall"],
                 y=df["score"],
                 name="score",
-                dash="dash"
+                dash="dash",
+                legendgroup=name
             )
 
     addScatterTrace(
@@ -71,7 +82,7 @@ def main():
 def isCsvFile(file):
     return path.isfile(file) and path.splitext(file)[1] == ".csv"
 
-def createFigure(xaxis_title,yaxis_title,xaxis,yaxis):
+def createFigure(xaxis_title,yaxis_title,xaxis,yaxis,colorway=None):
     return go.Figure(layout=go.Layout(
         height=None,
         plot_bgcolor="white",
@@ -79,10 +90,12 @@ def createFigure(xaxis_title,yaxis_title,xaxis,yaxis):
         yaxis_title=yaxis_title,
         xaxis=xaxis,
         yaxis=yaxis,
-        margin={"r":LEGEND_WIDTH,"autoexpand":False}
+        margin={"r":LEGEND_WIDTH,"autoexpand":False},
+        legend={"tracegroupgap":0},
+        colorway=colorway
     ))
 
-def addScatterTrace(fig,x,y,name,hovertemplate=None,text=None,color=None,dash=None):
+def addScatterTrace(fig,x,y,name,hovertemplate=None,text=None,color=None,dash=None,legendgroup=None):
     fig.add_trace(go.Scatter(
         x=x,
         y=y,
@@ -91,7 +104,8 @@ def addScatterTrace(fig,x,y,name,hovertemplate=None,text=None,color=None,dash=No
         hovertemplate=hovertemplate,
         line={"color":color,"width":1.5,"dash":dash},
         line_shape="linear",
-        text=text
+        text=text,
+        legendgroup=legendgroup
     ))
 
 def unescape(s):
