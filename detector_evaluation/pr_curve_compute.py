@@ -1,13 +1,15 @@
 #!/usr/bin/python3
 
+import os
 import csv
 import argparse
+import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-a", "--annotations", type=str, required=True)
 parser.add_argument("-d", "--detections", type=str, required=True)
 parser.add_argument("-o", "--output", type=str, required=True)
-parser.add_argument("-m", "--bb_match_metric", type=str, choices=["IOU", "IOA", "IOD"], default="IOU")
+parser.add_argument("-m", "--bb_match_metric", type=str, choices=["IOU", "IOA", "IOD", "SPIA"], default="IOU")
 parser.add_argument("-t", "--bb_match_threshold", type=float, default=0.5)
 parser.add_argument("--square_annotations", action="store_true")
 parser.add_argument("--square_detections", action="store_true")
@@ -36,15 +38,37 @@ def readCSVFile(csvPath):
       start = 1
       bbs = annotationsDict.setdefault(row[0], [])
 
+      if len(row) <= 2:   # Skipping "imageName" and "imageName\t" lines
+        continue
+
       while start < len(row):
         bbs.append(list(map(float, row[start : start + 5])))
         start += 5
 
   return annotationsDict
 
+def readSkeletonJSONFile(jsonPath):
+  with open(jsonPath, "rb") as fp:
+    skeletonDataset = json.load(fp)
+
+  output = {}
+  for skeletonFile in skeletonDataset:
+    assert skeletonFile["filename"] not in output
+    output[skeletonFile["filename"]] = []
+    for skel in skeletonFile["skeletons"]:
+      if not len(skel):
+        continue
+      x = [pt["x"] for pt in skel]
+      y = [pt["y"] for pt in skel]
+      scores = [pt["confidence"] for pt in skel]
+      bb = [min(x), min(y), max(x), max(y), sum(scores)/len(scores), list(zip(x, y))]
+      output[skeletonFile["filename"]].append(bb)
+  return output
+
+
 def getIOU(annBB, predBB, matchMetric):
-  minXpred, minYpred, maxXpred, maxYpred, _ = predBB
-  minXann, minYann, maxXann, maxYann, _ = annBB
+  minXpred, minYpred, maxXpred, maxYpred = predBB[0:4]
+  minXann, minYann, maxXann, maxYann = annBB[0:4]
 
   if maxXpred < minXann:
     return 0
@@ -83,6 +107,12 @@ def getIOU(annBB, predBB, matchMetric):
   if matchMetric == 'IOU':
     return areaI / (areaPred + areaAnn - areaI)
 
+  if matchMetric == "SPIA":
+    inside = [
+      (x >= minXann) and (x <= maxXann) and
+      (y >= minYann) and (y <= maxYann) for x, y in predBB[5]
+    ]
+    return sum(inside)/len(inside) if len(inside) else 0
 
 
 def getImgMetrics(predItems, annBBs, ignoreAnnBBs, scoreTresh, mode):
@@ -120,7 +150,7 @@ def getImgMetrics(predItems, annBBs, ignoreAnnBBs, scoreTresh, mode):
         continue
 
       for annBox in ignoreAnnBBs:
-        iou = getIOU(predBox, annBox, mode)
+        iou = getIOU(annBox, predBox, mode)
 
         if iou >= matchTreshold:
           posPreds -= 1
@@ -204,7 +234,13 @@ def seperateAnnsDict(annsDict):
   return activeAnnsDict, ignoreAnnsDict
 
 annotationsDict = readCSVFile(annotationsPath)
-predictionsDict = readCSVFile(detectionsPath)
+detectionsExt = os.path.splitext(detectionsPath)[1].lower()
+if detectionsExt == ".csv":
+  predictionsDict = readCSVFile(detectionsPath)
+elif detectionsExt == ".json":
+  predictionsDict = readSkeletonJSONFile(detectionsPath)
+else:
+  raise ValueError("Unknown detection file type!")
 
 if squareAnns:
   squareBoxes(annotationsDict)
