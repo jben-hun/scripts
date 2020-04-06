@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import os
 import argparse
 import datetime
 import pandas as pd
@@ -77,7 +78,7 @@ def main():
         dash="dashdot"
     )
 
-    py.offline.plot(fig,filename=args.output, auto_open=False)
+    py.offline.plot(fig,filename=args.output if args.output else os.getcwd().split(os.sep)[-1]+".html", auto_open=args.auto_open)
 
 def isCsvFile(file):
     return path.isfile(file) and path.splitext(file)[1] == ".csv"
@@ -115,9 +116,10 @@ def parseArguments():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-i", "--input", nargs="+", required=True,)
-    parser.add_argument("-o", "--output", required=True)
-    parser.add_argument("-s", "--score", action="store_true")
-    parser.add_argument("-d", "--delimiter", default="\t")
+    parser.add_argument("-o", "--output")
+    parser.add_argument("--score", action="store_true")
+    parser.add_argument("--auto_open", action="store_true")
+    parser.add_argument("--delimiter", default="\t")
 
     return parser.parse_args()
 
