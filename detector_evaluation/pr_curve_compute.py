@@ -14,6 +14,8 @@ parser.add_argument("-t", "--bb_match_threshold", type=float, default=0.5)
 parser.add_argument("--square_annotations", action="store_true")
 parser.add_argument("--square_detections", action="store_true")
 parser.add_argument("--delimiter", type=str, default="\t")
+parser.add_argument("--ignore_match_metric", type=str, choices=["IOU", "IOA", "IOD", "SPIA"], default="IOD")
+parser.add_argument("--ignore_match_threshold", type=float, default=0.5)
 args = parser.parse_args()
 
 
@@ -25,6 +27,11 @@ matchTreshold = args.bb_match_threshold
 squareAnns = args.square_annotations
 squareDets = args.square_detections
 delimiter = args.delimiter
+ignoreMetric = args.ignore_match_metric
+ignoreTresh = args.ignore_match_threshold
+
+if matchMetric == "SPIA":
+  assert( ignoreMetric == "SPIA" )
 
 confIdxIncrement = 1
 
@@ -65,10 +72,32 @@ def readSkeletonJSONFile(jsonPath):
       output[skeletonFile["filename"]].append(bb)
   return output
 
+def getSkeletonMetric(annBB, predBB):
+  minXann, minYann, maxXann, maxYann, _ = annBB
+  minXpred, minYpred, maxXpred, maxYpred, _, points = predBB
 
-def getIOU(annBB, predBB, matchMetric):
-  minXpred, minYpred, maxXpred, maxYpred = predBB[0:4]
-  minXann, minYann, maxXann, maxYann = annBB[0:4]
+  if maxXpred < minXann:
+    return 0
+
+  if maxYpred < minYann:
+    return 0
+
+  if maxXann < minXpred:
+    return 0
+
+  if maxYann < minYpred:
+    return 0
+
+  inside = [
+    (x >= minXann) and (x <= maxXann) and
+    (y >= minYann) and (y <= maxYann) for x, y in points
+  ]
+
+  return sum(inside)/len(inside) if len(inside) else 0
+
+def getBBMetric(annBB, predBB, endFunc):
+  minXann, minYann, maxXann, maxYann, _ = annBB
+  minXpred, minYpred, maxXpred, maxYpred, _ = predBB
 
   if maxXpred < minXann:
     return 0
@@ -95,27 +124,13 @@ def getIOU(annBB, predBB, matchMetric):
   hAnn = maxYann - minYann
 
   areaI = wI * hI
-  areaPred = wPred * hPred
   areaAnn = wAnn * hAnn
+  areaPred = wPred * hPred
 
-  if matchMetric == 'IOD':
-    return areaI / areaPred
-
-  if matchMetric == 'IOA':
-    return areaI / areaAnn
-
-  if matchMetric == 'IOU':
-    return areaI / (areaPred + areaAnn - areaI)
-
-  if matchMetric == "SPIA":
-    inside = [
-      (x >= minXann) and (x <= maxXann) and
-      (y >= minYann) and (y <= maxYann) for x, y in predBB[5]
-    ]
-    return sum(inside)/len(inside) if len(inside) else 0
+  return endFunc(areaI, areaAnn, areaPred)
 
 
-def getImgMetrics(predItems, annBBs, ignoreAnnBBs, scoreTresh, mode):
+def getImgMetrics(predItems, annBBs, ignoreAnnBBs, scoreTresh):
   ious = []
 
   posPreds = 0
@@ -124,7 +139,7 @@ def getImgMetrics(predItems, annBBs, ignoreAnnBBs, scoreTresh, mode):
     if predBox[4] >= scoreTresh:
       posPreds += 1
       for annBox, aIdx in zip(annBBs, range(len(annBBs))):
-        iou = getIOU(annBox, predBox, mode)
+        iou = getMatchMetric(annBox, predBox)
 
         if iou >= matchTreshold:
           ious.append((iou, pIdx, aIdx))
@@ -150,16 +165,15 @@ def getImgMetrics(predItems, annBBs, ignoreAnnBBs, scoreTresh, mode):
         continue
 
       for annBox in ignoreAnnBBs:
-        iou = getIOU(annBox, predBox, mode)
+        iou = getIgnoreMetric(annBox, predBox)
 
-        if iou >= matchTreshold:
+        if iou >= ignoreTresh:
           posPreds -= 1
           break
 
-
   return len(a_used), posPreds - len(p_used), len(annBBs) - len(a_used)
 
-def getGraphValues(activeAnnsDict, ignoreAnnsDict, predsDict, matchMetric):
+def getGraphValues(activeAnnsDict, ignoreAnnsDict, predsDict):
   tps = []
   fps = []
   fns = []
@@ -187,7 +201,7 @@ def getGraphValues(activeAnnsDict, ignoreAnnsDict, predsDict, matchMetric):
   for i in range(len(predScores)):
     scoreTresh, imgId = predScores[i]
     oldImgStats = imgStatsDict[imgId]
-    newImgStats = getImgMetrics(predsDict[imgId], activeAnnsDict[imgId], ignoreAnnsDict[imgId], scoreTresh, matchMetric)
+    newImgStats = getImgMetrics(predsDict[imgId], activeAnnsDict[imgId], ignoreAnnsDict[imgId], scoreTresh)
 
     cTP += newImgStats[0] - oldImgStats[0]
     cFP += newImgStats[1] - oldImgStats[1]
@@ -233,8 +247,30 @@ def seperateAnnsDict(annsDict):
 
   return activeAnnsDict, ignoreAnnsDict
 
+
+if matchMetric == "IOA":
+  getMatchMetric = lambda anns, preds: getBBMetric(anns, preds, lambda iA, aA, dA: (iA / aA if aA!=0.0 else 0.0 ) )
+elif matchMetric == "IOD":
+  getMatchMetric = lambda anns, preds: getBBMetric(anns, preds, lambda iA, aA, dA: (iA / dA if dA!=0.0 else 0.0 ) )
+elif matchMetric == "IOU":
+  getMatchMetric = lambda anns, preds: getBBMetric(anns, preds, lambda iA, aA, dA: iA / (aA + dA - iA))
+elif matchMetric == "SPIA":
+  getMatchMetric = getSkeletonMetric
+
+if ignoreMetric == "IOA":
+  getIgnoreMetric = lambda anns, preds: getBBMetric(anns, preds, lambda iA, aA, dA: (iA / aA if aA!=0.0 else 0.0 ) )
+elif ignoreMetric == "IOD":
+  getIgnoreMetric = lambda anns, preds: getBBMetric(anns, preds, lambda iA, aA, dA: (iA / dA if dA!=0.0 else 0.0 ) )
+elif ignoreMetric == "IOU":
+  getIgnoreMetric = lambda anns, preds: getBBMetric(anns, preds, lambda iA, aA, dA: iA / (aA + dA - iA))
+elif ignoreMetric == "SPIA":
+  getIgnoreMetric = getSkeletonMetric
+
+
 annotationsDict = readCSVFile(annotationsPath)
+
 detectionsExt = os.path.splitext(detectionsPath)[1].lower()
+
 if detectionsExt == ".csv":
   predictionsDict = readCSVFile(detectionsPath)
 elif detectionsExt == ".json":
@@ -242,15 +278,15 @@ elif detectionsExt == ".json":
 else:
   raise ValueError("Unknown detection file type!")
 
+activeAnnsDict, ignoreAnnsDict = seperateAnnsDict(annotationsDict)
+
 if squareAnns:
-  squareBoxes(annotationsDict)
+  squareBoxes(activeAnnsDict)
 
 if squareDets:
   squareBoxes(predictionsDict)
 
-activeAnnsDict, ignoreAnnsDict = seperateAnnsDict(annotationsDict)
-
-scores, precisions, recalls = getGraphValues(activeAnnsDict, ignoreAnnsDict, predictionsDict, matchMetric)
+scores, precisions, recalls = getGraphValues(activeAnnsDict, ignoreAnnsDict, predictionsDict)
 
 with open(outputPath, "w") as outputFile:
   writer = csv.writer(outputFile, delimiter = "\t")
