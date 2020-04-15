@@ -32,14 +32,17 @@ def main():
     with open(args.csv_file,"r") as f:
         count = 0
         annotationId = 0
-        for line in f:
-            splitLine = line.rstrip().split('\t')
+        lines = [line.rstrip() for line in f]
+        length = len(lines)
+        for line in lines:
+            splitLine = line.split('\t')
 
             image = splitLine[0]
+            boxes = [float(e) for e in splitLine[1:]]
 
             count += 1
             if count%100 == 0:
-                print(count,image)
+                print(length, count, image)
 
             try:
                 imageId = images.index(image)
@@ -47,7 +50,7 @@ def main():
                 imageShape = cv.imread(image, cv.IMREAD_UNCHANGED).shape
                 h,w = imageShape[0],imageShape[1]
                 images.append(image)
-                imageId = len(images)-1
+                imageId = len(images) - 1
                 cocoData["images"].append({
                     "file_name": image,
                     "id": imageId,
@@ -55,29 +58,28 @@ def main():
                     "width": w
                 })
 
-            boxes = splitLine[1:]
-            boxes = [ boxes[i] for i in range(len(boxes)) if (i+1)%5 != 0 ]
             i = 0
             while i < len(boxes):
-                x1 = float(boxes[i])
-                y1 = float(boxes[i+1])
-                x2 = float(boxes[i+2])
-                y2 = float(boxes[i+3])
-                i+=4
-                w = x2-x1+1
-                h = y2-y1+1
-                area = w*h
+                x1 = boxes[i]
+                y1 = boxes[i+1]
+                x2 = boxes[i+2]
+                y2 = boxes[i+3]
+                c = boxes[i+4]
+                i += 5
+                w = x2 - x1
+                h = y2 - y1
+                area = w * h
                 cocoData["annotations"].append({
                     "image_id": imageId,
                     "id": annotationId,
-                    "bbox": [x1,y1,x2,y2],
+                    "bbox": [x1,y1,w,h],
                     "category_id": 1,
-                    "iscrowd": False,
+                    "iscrowd": 1 if c == 0 else 0,
                     "area": area
                 })
                 annotationId += 1
 
-    with open(path.splitext(args.csv_file)[0]+".json","w") as f:
+    with open(path.splitext(args.csv_file)[0]+".json", "w") as f:
         json.dump(cocoData, f, indent=2)
 
 

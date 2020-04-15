@@ -31,12 +31,14 @@ def main():
                 bbox = [
                     annot["bbox"][0],
                     annot["bbox"][1],
-                    annot["bbox"][0]+annot["bbox"][2]-1,
-                    annot["bbox"][1]+annot["bbox"][3]-1
+                    annot["bbox"][0]+annot["bbox"][2],
+                    annot["bbox"][1]+annot["bbox"][3]
                 ]
                 label = 0 if args.mask_crowd and annot["iscrowd"] else 1
 
                 annotationsPerImage[image] += bbox + [label]
+            else:
+                print("non-human annotation found")
 
     with open(path.splitext(args.json_file)[0]+("_masked_crowds" if args.mask_crowd else "")+".csv","w") as f:
         for image,detections in annotationsPerImage.items():
