@@ -1,9 +1,7 @@
 #! /usr/bin/python3
 
-import sys, os
-from PIL import Image, ImageDraw
-import numpy as np
-from sys import exit
+import sys
+# from PIL import Image, ImageDraw
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -24,7 +22,7 @@ for line in lines:
     if len(line.split('\t')) == 1:
         continue
     key = '/'.join((line.split('\t')[0]).split('/')[:-1])
-    key = key.replace('/','_')
+    key = key.replace('/', '_')
     if "v3_rossmann" in key:
         key = "rossmann"
     elif "v4_rossmann" in key:
@@ -66,15 +64,15 @@ for line in lines:
         h = y2 - y1 + 1
         boxSize = h
 
-        # if min(h,w) < 10:
-        #     # path = "/home/bjenei/mount/research01/"+line.split('\t')[0]
-        #     # filename = path.split('/')[-1]
-        #     # im = Image.open(path)
-        #     # draw = ImageDraw.Draw(im)
-        #     # draw.rectangle([(x1,y1),(x2,y2)],outline=(255,0,0,255))
-        #     # del draw
-        #     # os.makedirs(key, exist_ok=True)
-        #     # im.save(key + '/' + filename)
+        # if min(h, w) < 10:
+        #     path = "/home/bjenei/mount/research01/"+line.split('\t')[0]
+        #     filename = path.split('/')[-1]
+        #     im = Image.open(path)
+        #     draw = ImageDraw.Draw(im)
+        #     draw.rectangle([(x1, y1), (x2, y2)], outline=(255, 0, 0, 255))
+        #     del draw
+        #     os.makedirs(key, exist_ok=True)
+        #     im.save(key + '/' + filename)
 
         if key in d:
             d[key].append(boxSize)
@@ -87,7 +85,7 @@ for line in lines:
         else:
             dCount[key] = 1
 
-sortedKeys = sorted(d.keys(),key=str.lower)
+sortedKeys = sorted(d.keys(), key=str.lower)
 
 for key in sortedKeys:
     # sizes = sorted(d[key])
@@ -100,33 +98,26 @@ for key in sortedKeys:
     a = np.array(d[key])
     countSize = a.shape[0]
     meanBoxNum = countSize / dCount[key]
-    meanSize = np.mean(a,dtype=np.float64)
-    stdSize = np.std(a,dtype=np.float64)
-    line = "images: {:7.0f}   boxes: {:8.0f}   bb/img: {:3.1f}   size: {:4.0f}   std: {:4.0f}   @   {}".format(
-        dCount[key],
-        countSize,
-        meanBoxNum,
-        meanSize,
-        stdSize,
-        key
-    )
+    meanSize = np.mean(a, dtype=np.float64)
+    stdSize = np.std(a, dtype=np.float64)
+    line = ("images: {:7.0f}   boxes: {:8.0f}   bb/img: {:3.1f}   "
+            + "size: {:4.0f}   std: {:4.0f}   @   {}".format(
+                dCount[key], countSize, meanBoxNum, meanSize, stdSize, key))
 
     print(line)
 
     ax.hist(
         a,
         color='b',
-        bins=int(round( (np.max(a)-np.min(a)+1)/10 ))
+        bins=int(round((np.max(a)-np.min(a)+1)/10))
     )
     plt.title(key)
-    ax.set_xlim(left=-50,right=600)
-    ax.set_xticks(list(range(-50,650,50)))
-    # fig.set_size_inches(16, 8) # w,h
-    fig.set_size_inches(16, 10) # w,h
+    ax.set_xlim(left=-50, right=600)
+    ax.set_xticks(list(range(-50, 650, 50)))
+    # fig.set_size_inches(16, 8)  # w,h
+    fig.set_size_inches(16, 10)  # w,h
     fig.savefig("histogram_"+key+".png")
     plt.cla()
-
-
 
 """
 v3:

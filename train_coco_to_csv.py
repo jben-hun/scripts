@@ -2,17 +2,13 @@
 
 import argparse
 import json
-import os
-import shutil
-from os import sys
 from os import path
-from pprint import pprint
-from sys import exit
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("json_file")
-    parser.add_argument("-m","--mask_crowd",action="store_true")
+    parser.add_argument("-m", "--mask_crowd", action="store_true")
     args = parser.parse_args()
 
     assert path.exists(args.json_file)
@@ -40,14 +36,15 @@ def main():
             else:
                 print("non-human annotation found")
 
-    with open(path.splitext(args.json_file)[0]+("_masked_crowds" if args.mask_crowd else "")+".csv","w") as f:
-        for image,detections in annotationsPerImage.items():
+    with open(
+            path.splitext(args.json_file)[0]
+            + ("_masked_crowds" if args.mask_crowd else "")+".csv", "w") as f:
+        for image, detections in annotationsPerImage.items():
             if detections:
                 line = [image]+detections
-                line = list(map(str,line))
+                line = list(map(str, line))
                 line = "\t".join(line)
                 f.write(line+"\n")
-
 
 
 if __name__ == '__main__':

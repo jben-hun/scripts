@@ -1,17 +1,16 @@
 #!/usr/bin/python3
 
-import os
 import argparse
 import shutil
 import numpy as np
 import cv2 as cv
 import os.path as path
-from sys import exit
 from pprint import pprint
 from math import floor
 from math import ceil
 
 report = {}
+
 
 def error(str):
     if str in report:
@@ -25,9 +24,12 @@ def error(str):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("path")
-parser.add_argument("-c","--count", default=1, type=int, help="input image count")
-parser.add_argument("-t","--trim", action="store_true", help="trim outlier bboxes on image edge")
-parser.add_argument("-m","--mask", action="store_true", help="mask instead of drop ambiguous boxes")
+parser.add_argument("-c", "--count", default=1, type=int,
+                    help="input image count")
+parser.add_argument("-t", "--trim", action="store_true",
+                    help="trim outlier bboxes on image edge")
+parser.add_argument("-m", "--mask", action="store_true",
+                    help="mask instead of drop ambiguous boxes")
 args = parser.parse_args()
 
 file = args.path
@@ -36,12 +38,13 @@ count = args.count
 print(file)
 print()
 
-with open(file,'r') as f:
+with open(file, 'r') as f:
     lines = f.readlines()
 
-lines = [ line[:-1] for line in lines ]
+lines = [line[:-1] for line in lines]
 
-shutil.copy( file, path.splitext(file)[0]+"_filter_backup"+path.splitext(file)[1] )
+shutil.copy(
+    file, path.splitext(file)[0]+"_filter_backup"+path.splitext(file)[1])
 
 outputLines = []
 for line in lines:
@@ -54,12 +57,12 @@ for line in lines:
         continue
 
     boxes = splitLine[count:]
-    if len(boxes) %5!= 0:
+    if len(boxes) % 5 != 0:
         error("boxdiv: skipped")
         continue
 
-    boxes = [ float(e) for e in boxes ]
-    boxes = np.reshape(boxes,(-1,5)).tolist()
+    boxes = [float(e) for e in boxes]
+    boxes = np.reshape(boxes, (-1, 5)).tolist()
 
     i = 0
     while i < len(boxes):
@@ -71,11 +74,11 @@ for line in lines:
         boxes[i][4] = 1
 
         if args.trim:
-            h,w,c = cv.imread(image,cv.IMREAD_UNCHANGED).shape
-            boxes[i][0] = max(0,boxes[i][0])
-            boxes[i][1] = max(0,boxes[i][1])
-            boxes[i][2] = min(w-1,boxes[i][2])
-            boxes[i][3] = min(h-1,boxes[i][3])
+            h, w, c = cv.imread(image, cv.IMREAD_UNCHANGED).shape
+            boxes[i][0] = max(0, boxes[i][0])
+            boxes[i][1] = max(0, boxes[i][1])
+            boxes[i][2] = min(w-1, boxes[i][2])
+            boxes[i][3] = min(h-1, boxes[i][3])
 
         if args.mask:
             if boxes[i][0] > boxes[i][2]:
@@ -128,7 +131,7 @@ for line in lines:
 
     outputLines.append(text)
 
-with open( file, 'w' ) as f:
+with open(file, 'w') as f:
     for line in outputLines:
         f.write(line+'\n')
 

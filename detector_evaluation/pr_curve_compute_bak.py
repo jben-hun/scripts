@@ -198,9 +198,6 @@ def getGraphValues(activeAnnsDict, ignoreAnnsDict, predsDict):
     cFN = 0
 
     for img, boxes in predsDict.items():
-        if img not in activeAnnsDict or not activeAnnsDict[img]:
-            continue
-
         annsL = len(activeAnnsDict[img])
         cFN += annsL
         imgStatsDict[img] = (0, 0, annsL)
@@ -263,31 +260,32 @@ def seperateAnnsDict(annsDict):
 
 if matchMetric == "IOA":
     def getMatchMetric(anns, preds):
-        return getBBMetric(anns, preds,
-                           lambda iA, aA, dA: (iA / aA if aA != 0.0 else 0.0))
+        getBBMetric(anns, preds,
+                    lambda iA, aA, dA: (iA / aA if aA != 0.0 else 0.0))
 elif matchMetric == "IOD":
     def getMatchMetric(anns, preds):
-        return getBBMetric(anns, preds,
-                           lambda iA, aA, dA: (iA / dA if dA != 0.0 else 0.0))
+        getBBMetric(anns, preds,
+                    lambda iA, aA, dA: (iA / dA if dA != 0.0 else 0.0))
 elif matchMetric == "IOU":
     def getMatchMetric(anns, preds):
-        return getBBMetric(anns, preds, lambda iA, aA, dA: iA / (aA + dA - iA))
+        getBBMetric(anns, preds, lambda iA, aA, dA: iA / (aA + dA - iA))
 elif matchMetric == "SPIA":
     getMatchMetric = getSkeletonMetric
 
 if ignoreMetric == "IOA":
     def getIgnoreMetric(anns, preds):
-        return getBBMetric(anns, preds,
-                           lambda iA, aA, dA: (iA / aA if aA != 0.0 else 0.0))
+        getBBMetric(anns, preds,
+                    lambda iA, aA, dA: (iA / aA if aA != 0.0 else 0.0))
 elif ignoreMetric == "IOD":
     def getIgnoreMetric(anns, preds):
-        return getBBMetric(anns, preds,
-                           lambda iA, aA, dA: (iA / dA if dA != 0.0 else 0.0))
+        getBBMetric(anns, preds,
+                    lambda iA, aA, dA: (iA / dA if dA != 0.0 else 0.0))
 elif ignoreMetric == "IOU":
     def getIgnoreMetric(anns, preds):
-        return getBBMetric(anns, preds, lambda iA, aA, dA: iA / (aA + dA - iA))
+        getBBMetric(anns, preds, lambda iA, aA, dA: iA / (aA + dA - iA))
 elif ignoreMetric == "SPIA":
     getIgnoreMetric = getSkeletonMetric
+
 
 annotationsDict = readCSVFile(annotationsPath)
 

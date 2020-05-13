@@ -1,7 +1,9 @@
 #! /usr/bin/python3
 
-import sys, os, statistics
-from datetime import datetime, timedelta
+import sys
+from datetime import datetime
+from datetime import timedelta
+# import statistics
 
 if (len(sys.argv) < 3):
     sys.exit("usage: timeleft.py path steplimit")
@@ -32,17 +34,17 @@ for i in range(len(lines)):
         time = datetime.strptime(time, "%m%d %H:%M:%S.%f")
 
         end = found
-        start = line.rfind('(', 0, end) +1
+        start = line.rfind('(', 0, end) + 1
         speed = float(line[start:end])
 
         times.append(time)
         speeds.append(speed)
 
-steps = min(20,len(speeds))
+steps = min(20, len(speeds))
 speed = sum(speeds[-steps:]) / steps
-#speed = statistics.median(speeds)
-#speed = sum(speeds)/len(speeds)
-#speed = speeds[-1]
+# speed = statistics.median(speeds)
+# speed = sum(speeds)/len(speeds)
+# speed = speeds[-1]
 
 trainedFor = times[-1] - times[0]
 stepsLeft = iterLimit - len(times)*50
