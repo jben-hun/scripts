@@ -1,9 +1,12 @@
 #! /usr/bin/python3
 
-from sys import exit
-import matplotlib.pyplot as plt, numpy as np, sys, os, argparse, scipy.stats as stats, scipy.signal
+import argparse
+import scipy.signal
+import numpy as np
+import matplotlib.pyplot as plt
 
 BLACKLIST = {"accuracy"}
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -24,10 +27,12 @@ def main():
         lines = f.readlines()
         lines = [line.rstrip() for line in lines]
 
-    testLines =  filter(lambda x: "Testing net" in x or "Test net output" in x, lines)
-    trainLines = filter(lambda x: " iters), loss = " in x or "Train net output" in x, lines)
+    testLines = filter(
+        lambda x: "Testing net" in x or "Test net output" in x, lines)
+    trainLines = filter(
+        lambda x: " iters), loss = " in x or "Train net output" in x, lines)
 
-    testLosses,trainLosses,testIterations,trainIterations = {},{},[],[]
+    testLosses, trainLosses, testIterations, trainIterations = {}, {}, [], []
 
     for line in testLines:
         found = line.find("Iteration")
@@ -38,7 +43,7 @@ def main():
             name = fields[2]
             if name not in BLACKLIST:
                 value = float(fields[4])
-                mapAppend(testLosses,name,value)
+                mapAppend(testLosses, name, value)
 
     for line in trainLines:
         found = line.find("Iteration")
@@ -49,48 +54,52 @@ def main():
             name = fields[2]
             if name not in BLACKLIST:
                 value = float(fields[4])
-                mapAppend(trainLosses,name,value)
+                mapAppend(trainLosses, name, value)
 
     # plot train losses
-    length = min([ len(v) for v in trainLosses.values() ] + [ len(trainIterations) ])
+    length = min(
+        [len(v) for v in trainLosses.values()] + [len(trainIterations)])
     x = np.array(trainIterations)
-    for name,losses in trainLosses.items():
+    for name, losses in trainLosses.items():
         y = np.array(losses)
         if args.median:
-            y = scipy.signal.medfilt(y,trainWindow)
+            y = scipy.signal.medfilt(y, trainWindow)
         else:
-            yPadded = np.pad(y,(trainWindow-1,0),"edge")
-            y = np.convolve(yPadded, np.ones((trainWindow,))/trainWindow, mode="valid")
-        plt.plot(x[:length],y[:length],label="train "+name)
+            yPadded = np.pad(y, (trainWindow-1, 0), "edge")
+            y = np.convolve(
+                yPadded, np.ones((trainWindow,))/trainWindow, mode="valid")
+        plt.plot(x[:length], y[:length], label="train "+name)
 
     # plot test losses
-    length = min([ len(v) for v in testLosses.values() ] + [ len(testIterations) ])
+    length = min(
+        [len(v) for v in testLosses.values()] + [len(testIterations)])
     x = np.array(testIterations)
-    padSize = (testWindow-1)//2, (testWindow-1) - (testWindow-1)//2
-    for name,losses in testLosses.items():
+    # padSize = (testWindow-1)//2, (testWindow-1) - (testWindow-1)//2
+    for name, losses in testLosses.items():
         y = np.array(losses)
         if args.median:
-            y = scipy.signal.medfilt(y,trainWindow)
+            y = scipy.signal.medfilt(y, trainWindow)
         else:
-            yPadded = np.pad(y,(testWindow-1,0),"edge")
-            y = np.convolve(yPadded, np.ones((testWindow,))/testWindow, mode="valid")
-        plt.plot(x[:length],y[:length],label="test "+name)
+            yPadded = np.pad(y, (testWindow-1, 0), "edge")
+            y = np.convolve(
+                yPadded, np.ones((testWindow,))/testWindow, mode="valid")
+        plt.plot(x[:length], y[:length], label="test "+name)
 
     ax.set(xlabel='iterations', ylabel='losses')
     if args.ylim is not None:
-        ax.set_ylim(bottom=0,top=args.ylim)
+        ax.set_ylim(bottom=0, top=args.ylim)
     ax.legend()
     ax.grid()
     plt.tight_layout()
     plt.show()
 
 
-
-def mapAppend(map,key,value):
+def mapAppend(map, key, value):
     if key in map:
         map[key].append(value)
     else:
         map[key] = [value]
+
 
 if __name__ == '__main__':
     main()

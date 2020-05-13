@@ -1,6 +1,9 @@
 #!/usr/bin/python3
 
-import os, sys, argparse, numpy as np
+import os
+import sys
+import numpy as np
+import argparse
 
 HOME = os.environ["HOME"]
 CAFFE_PATH = HOME+"/git/caffe/build"
@@ -12,6 +15,7 @@ except ValueError:
     sys.path.append(PYTHONPATH)
 
 import caffe
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("source")
@@ -25,8 +29,8 @@ b = oldnet.params['conv1'][1].data
 
 os.chdir(args.target)
 net = caffe.Net('train.prototxt', caffe.TRAIN, weights='../v3/lite.caffemodel')
-net.params['conv1b'][0].data[:,:3,...] = (a/2)
-net.params['conv1b'][0].data[:,3:,...] = (a/2)
+net.params['conv1b'][0].data[:, :3, ...] = (a/2)
+net.params['conv1b'][0].data[:, 3:, ...] = (a/2)
 net.params['conv1b'][1].data[:] = b
 net.save('lite.caffemodel')
 
@@ -35,8 +39,8 @@ a = net.params['conv1b'][0].data
 b = net.params['conv1b'][1].data
 
 print(
-    np.sum(np.absolute( a[:,:3,...] - a[:,3:,...] )),
-    np.sum(np.absolute( a )),
-    np.sum(np.absolute( b )),
+    np.sum(np.absolute(a[:, :3, ...] - a[:, 3:, ...])),
+    np.sum(np.absolute(a)),
+    np.sum(np.absolute(b)),
     sep="\n\n"
 )

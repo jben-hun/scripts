@@ -1,35 +1,36 @@
 #!/usr/bin/python3
 
-from shutil import copytree, copy2
-from pprint import pprint
+from shutil import copy2
 from os import path
-from sys import exit, argv
-import json, datetime, argparse, os
+import json
+import datetime
+import argparse
+import os
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("csv_file")
-    parser.add_argument("-o","--output_dir",default="data")
-    parser.add_argument("-a","--annotator",default="head_det v3 0_7")
+    parser.add_argument("-o", "--output_dir", default="data")
+    parser.add_argument("-a", "--annotator", default="head_det v3 0_7")
     args = parser.parse_args()
 
     assert not path.exists(args.output_dir)
 
     taskDirs = set()
-    train = {}
-    with open(args.csv_file,'r') as f:
+    with open(args.csv_file, 'r') as f:
         c = 0
         for line in f:
             splitLine = line.rstrip().split('\t')
 
             c += 1
-            if c%100 == 0:
-                print(c,splitLine[0])
+            if c % 100 == 0:
+                print(c, splitLine[0])
 
             src = splitLine[0]
-            dst = path.join(args.output_dir,path.dirname(src).lstrip(os.sep))
+            dst = path.join(args.output_dir, path.dirname(src).lstrip(os.sep))
             boxes = splitLine[1:]
-            boxes = [ boxes[i] for i in range(len(boxes)) if (i+1)%5 != 0 ]
+            boxes = [boxes[i] for i in range(len(boxes)) if (i+1) % 5 != 0]
 
             d = {}
             d["image"] = path.basename(src)
@@ -41,12 +42,12 @@ def main():
                 y1 = boxes[i+1]
                 x2 = boxes[i+2]
                 y2 = boxes[i+3]
-                i+=4
+                i += 4
 
                 objects.append(
                     {
                          "name": "person",
-                         "head": {"x1":x1, "y1":y1, "x2":x2, "y2":y2}
+                         "head": {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
                     }
                 )
 
@@ -56,8 +57,9 @@ def main():
             d["annotations"] = [
                 {
                     "annotator": args.annotator,
-                    "date": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-                    "objects" : objects
+                    "date": datetime.datetime.now().strftime(
+                        "%Y-%m-%dT%H:%M:%S.%fZ"),
+                    "objects": objects
                 }
             ]
 
@@ -68,7 +70,6 @@ def main():
 
             taskDirs.add(dst)
 
-
     taskDirs = list(taskDirs)
     taskDirs = [
         {
@@ -78,8 +79,9 @@ def main():
         for i in range(len(taskDirs))
     ]
 
-    with open( path.join(args.output_dir,"tasks.json"), 'w' ) as f:
+    with open(path.join(args.output_dir, "tasks.json"), 'w') as f:
         json.dump(taskDirs, f, indent=2)
+
 
 if __name__ == "__main__":
     main()
